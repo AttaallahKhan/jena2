@@ -1,0 +1,20 @@
+{
+  "name": "jena-web-gui",
+  "version": "1.0.0",
+  "description": "Modern Web GUI for Jena Autonomous AI Agent",
+  "main": "web/server.js",
+  "scripts": {
+    "start": "node web/server.js",
+    "web": "node web/server.js",
+    "dev": "node --watch web/server.js"
+  },
+  "keywords": [
+    "jena",
+    "ai",
+    "autonomous-agent",
+    "termux",
+    "web-gui"
+  ],
+  "author": "Jena Team",
+  "license": "MIT"
+}

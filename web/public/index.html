@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="ur" dir="ltr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#0b0f19">
+  <title>Jena — Autonomous AI Agent Web GUI</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Top Navigation Bar -->
+    <header class="top-nav">
+      <div class="nav-brand">
+        <div class="logo-wrapper">
+          <div class="robot-avatar">🤖</div>
+          <span class="status-indicator online" id="statusPulse" title="Jena Online"></span>
+        </div>
+        <div class="brand-info">
+          <div class="brand-title">
+            <span class="brand-name">Jena</span>
+            <span class="badge badge-version">Autonomous Agent</span>
+          </div>
+          <div class="brand-meta" id="headerMeta">
+            <span class="meta-item provider-tag" id="activeProviderBadge">GROQ</span>
+            <span class="meta-sep">•</span>
+            <span class="meta-item model-tag" id="activeModelBadge">qwen/qwen3.8-27b</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="nav-actions">
+        <button class="icon-btn" id="btnSystem" title="System Info & Battery" aria-label="System">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+          <span class="btn-label">System</span>
+        </button>
+
+        <button class="icon-btn" id="btnMemory" title="Long-term Memory Facts" aria-label="Memory">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 0 1 4 4c0 1.95-1.4 3.58-3.25 3.93l-.75.14V14h2v2h-2v2h2v2h-4v-6h-.75A4.002 4.002 0 0 1 8 6a4 4 0 0 1 4-4z"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="18" r="3"></circle></svg>
+          <span class="btn-label">Memory</span>
+        </button>
+
+        <button class="icon-btn" id="btnSettings" title="Configuration & API Keys" aria-label="Settings">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+          <span class="btn-label">Settings</span>
+        </button>
+
+        <button class="icon-btn danger-hover" id="btnClearChat" title="Clear Chat History" aria-label="Clear">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Chat Messages Stream Container -->
+    <main class="chat-viewport" id="chatViewport">
+      <div class="chat-stream" id="chatStream">
+        <!-- Hero Welcome Card (Shown if empty) -->
+        <div class="welcome-card" id="welcomeCard">
+          <div class="welcome-avatar">🤖</div>
+          <h2>Salam! Main Jena Hoon</h2>
+          <p class="welcome-desc">Aapki autonomous AI pair programmer jo Termux aur Linux mein khud commands chalati hai, coding karti hai aur errors debug karti hai.</p>
+
+          <div class="quick-prompts-grid">
+            <button class="quick-prompt-card" data-prompt="Mera Termux architecture aur battery percentage check karke batao.">
+              <span class="card-icon">🔋</span>
+              <div class="card-text">
+                <strong>Battery & System Specs</strong>
+                <span>Termux device info aur battery check</span>
+              </div>
+            </button>
+
+            <button class="quick-prompt-card" data-prompt="Current directory ke tamam files check karo aur summary do.">
+              <span class="card-icon">📂</span>
+              <div class="card-text">
+                <strong>Explore Workspace</strong>
+                <span>Files aur directories ki list dekhna</span>
+              </div>
+            </button>
+
+            <button class="quick-prompt-card" data-prompt="Internet par latest open-source AI models search karke 3 best models batao.">
+              <span class="card-icon">🌐</span>
+              <div class="card-text">
+                <strong>Live Web Search</strong>
+                <span>Internet search aur scraping</span>
+              </div>
+            </button>
+
+            <button class="quick-prompt-card" data-prompt="Ek Python script banao jo current directory mein disk space check kare aur run karke dikhao.">
+              <span class="card-icon">⚡</span>
+              <div class="card-text">
+                <strong>Autonomous Coding</strong>
+                <span>Code likhna, save karna aur execute karna</span>
+              </div>
+            </button>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Bottom Input & Controls Container -->
+    <footer class="bottom-dock">
+      <!-- Quick suggestions pill bar -->
+      <div class="suggestions-bar">
+        <button class="pill-btn" data-prompt="uname -a command chala kar check karo">💻 Check OS Kernel</button>
+        <button class="pill-btn" data-prompt="Meri memory mein kya saved facts hain?">🧠 Check Memory</button>
+        <button class="pill-btn" data-prompt="Disk usage check karo (df -h)">💾 Disk Space</button>
+        <button class="pill-btn" data-prompt="Top running processes check karo (ps aux | head -n 10)">⚡ Active Processes</button>
+      </div>
+
+      <!-- Live Agent Status Banner (when running) -->
+      <div class="agent-live-status" id="agentLiveStatus" style="display: none;">
+        <div class="status-spinner"></div>
+        <span class="status-msg" id="liveStatusText">Jena soch rahi hai...</span>
+        <button class="btn-stop-task" id="btnStopTask">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"></rect></svg>
+          Roko (Stop)
+        </button>
+      </div>
+
+      <!-- Input Bar -->
+      <form class="input-form" id="chatForm">
+        <div class="input-wrapper">
+          <textarea
+            id="promptInput"
+            placeholder="Jena ko task dein ya sawal poochein... (Shift+Enter nayi line ke liye)"
+            rows="1"
+            autocomplete="off"
+            spellcheck="false"
+          ></textarea>
+
+          <div class="input-controls">
+            <!-- Voice Dictation Button -->
+            <button type="button" class="btn-voice" id="btnVoice" title="Voice Input (Speech-to-Text)">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
+            </button>
+
+            <!-- Send Button -->
+            <button type="submit" class="btn-send" id="btnSend" title="Bhejein (Send)">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+            </button>
+          </div>
+        </div>
+      </form>
+    </footer>
+  </div>
+
+  <!-- Settings Modal -->
+  <div class="modal-backdrop" id="settingsModal" style="display: none;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>⚙️ Jena Settings & Configuration</h3>
+        <button class="modal-close" data-close="settingsModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="settingsForm">
+          <div class="form-group">
+            <label for="setProvider">Active AI Provider</label>
+            <select id="setProvider" class="form-control">
+              <option value="groq">Groq (Tez Tareen • Default)</option>
+              <option value="gemini">Google Gemini</option>
+              <option value="openai">OpenAI Compatible</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="setModelSelect">Model Selection</label>
+            <select id="setModelSelect" class="form-control">
+              <!-- Dynamically populated based on active AI Provider -->
+            </select>
+            <small class="help-text">Active provider ke mutabiq recommended models yahan se select karein.</small>
+          </div>
+
+          <div class="form-group" id="customModelGroup" style="display: none;">
+            <label for="setCustomModel">Custom Model Identifier</label>
+            <input type="text" id="setCustomModel" class="form-control" placeholder="e.g. qwen/qwen3.8-27b ya custom-model-id">
+            <small class="help-text">Apna custom model name likhein jo aap istemal karna chahte hain.</small>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group half">
+              <label for="setTemp">Temperature: <span id="tempVal">0.3</span></label>
+              <input type="range" id="setTemp" min="0.0" max="1.0" step="0.05" value="0.3" class="range-slider">
+            </div>
+
+            <div class="form-group half">
+              <label for="setTokens">Max Tokens: <span id="tokensVal">700</span></label>
+              <input type="range" id="setTokens" min="200" max="4000" step="100" value="700" class="range-slider">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="setTurns">Chat History Turns: <span id="turnsVal">3</span></label>
+            <input type="range" id="setTurns" min="1" max="10" step="1" value="3" class="range-slider">
+            <small class="help-text">Termux par token limit aur speed ke liye 3-5 turns behtareen hain.</small>
+          </div>
+
+          <hr class="form-divider">
+
+          <h4>🔑 API Keys</h4>
+          <div class="form-group">
+            <label for="keyGroq">Groq API Key <span class="badge" id="groqStatusBadge">Checked</span></label>
+            <div class="password-wrapper">
+              <input type="password" id="keyGroq" class="form-control" placeholder="gsk_...">
+              <button type="button" class="btn-toggle-pw" data-target="keyGroq">👁️</button>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="keyGemini">Gemini API Key <span class="badge" id="geminiStatusBadge">Checked</span></label>
+            <div class="password-wrapper">
+              <input type="password" id="keyGemini" class="form-control" placeholder="AIzaSy...">
+              <button type="button" class="btn-toggle-pw" data-target="keyGemini">👁️</button>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="keyOpenai">OpenAI API Key</label>
+            <div class="password-wrapper">
+              <input type="password" id="keyOpenai" class="form-control" placeholder="sk-...">
+              <button type="button" class="btn-toggle-pw" data-target="keyOpenai">👁️</button>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-close="settingsModal">Cancel</button>
+            <button type="submit" class="btn btn-primary" id="btnSaveSettings">Save Settings</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Memory Facts Modal -->
+  <div class="modal-backdrop" id="memoryModal" style="display: none;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>🧠 Long-Term Memory Facts</h3>
+        <button class="modal-close" data-close="memoryModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-desc">Yeh persistent facts hain jo Jena hamesha yaad rakhti hai (saved in <code>~/.jena/memory.json</code>).</p>
+        
+        <!-- Add New Fact Form -->
+        <div class="add-fact-box">
+          <input type="text" id="newFactInput" class="form-control" placeholder="Naya fact likhein (e.g. User ka preferred database SQLite hai)...">
+          <button class="btn btn-primary" id="btnAddFact">Add Fact</button>
+        </div>
+
+        <!-- Facts List -->
+        <div class="facts-list" id="factsList">
+          <div class="empty-state">Facts load ho rahe hain...</div>
+        </div>
+
+        <div class="modal-footer space-between">
+          <button type="button" class="btn btn-danger" id="btnClearMemory">Reset All Memory</button>
+          <button type="button" class="btn btn-secondary" data-close="memoryModal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- System Info Modal -->
+  <div class="modal-backdrop" id="systemModal" style="display: none;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>📊 Termux & System Monitor</h3>
+        <button class="modal-close" data-close="systemModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="system-stats-grid" id="systemStatsGrid">
+          <div class="stat-box">
+            <span class="stat-icon">🔋</span>
+            <div class="stat-info">
+              <span class="stat-label">Battery Level</span>
+              <strong class="stat-val" id="statBattery">Checking...</strong>
+            </div>
+          </div>
+
+          <div class="stat-box">
+            <span class="stat-icon">💾</span>
+            <div class="stat-info">
+              <span class="stat-label">RAM Usage</span>
+              <strong class="stat-val" id="statRam">Checking...</strong>
+            </div>
+          </div>
+
+          <div class="stat-box">
+            <span class="stat-icon">⚙️</span>
+            <div class="stat-info">
+              <span class="stat-label">Architecture</span>
+              <strong class="stat-val" id="statArch">Checking...</strong>
+            </div>
+          </div>
+
+          <div class="stat-box">
+            <span class="stat-icon">⏱️</span>
+            <div class="stat-info">
+              <span class="stat-label">System Uptime</span>
+              <strong class="stat-val" id="statUptime">Checking...</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="system-env-details">
+          <div class="env-row">
+            <span class="env-k">Operating System:</span>
+            <span class="env-v" id="statOs">Linux / Android</span>
+          </div>
+          <div class="env-row">
+            <span class="env-k">Working Directory:</span>
+            <span class="env-v code-text" id="statCwd">/data/data/com.termux/files/home/jena2</span>
+          </div>
+          <div class="env-row">
+            <span class="env-k">Node.js Server:</span>
+            <span class="env-v" id="statNode">Active (Port 8080)</span>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-close="systemModal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>
