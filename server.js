@@ -782,6 +782,11 @@ function startServer() {
     const pathname = parsedUrl.pathname;
     const method = req.method.toUpperCase();
 
+    // Request logging for visibility
+    if (pathname.startsWith('/api/')) {
+      console.log(`[${new Date().toLocaleTimeString()}] ${method} ${pathname}`);
+    }
+
     // CORS preflight
     if (method === 'OPTIONS') {
       res.writeHead(204, {
@@ -1020,8 +1025,16 @@ function startServer() {
       return res.end();
     }
 
-    // --- STATIC FILES SERVING ---
-    let filePath = pathname === '/' ? path.join(PUBLIC_DIR, 'index.html') : path.join(PUBLIC_DIR, pathname);
+    // --- STATIC FILES & PAGE ROUTES SERVING ---
+    if (pathname === '/' || pathname === '/settings' || pathname === '/models' || pathname === '/providers') {
+      const indexFile = path.join(PUBLIC_DIR, 'index.html');
+      if (fs.existsSync(indexFile)) {
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+        return fs.createReadStream(indexFile).pipe(res);
+      }
+    }
+
+    let filePath = path.join(PUBLIC_DIR, pathname);
     filePath = path.normalize(filePath);
 
     if (!filePath.startsWith(PUBLIC_DIR)) {

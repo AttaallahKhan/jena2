@@ -21,254 +21,301 @@
         </div>
       </div>
 
+      <!-- Main Navigation Tabs (Page 1 vs Page 2) -->
+      <nav class="nav-tabs">
+        <button type="button" class="nav-tab active" id="tabNavMain">
+          💬 Chat
+        </button>
+        <button type="button" class="nav-tab" id="tabNavSettings">
+          ⚙️ Providers & Models
+        </button>
+      </nav>
+
       <div class="header-actions">
+        <!-- Mode Switch (Offline / Online) -->
         <div class="mode-toggle-group" id="modeToggleGroup">
           <button type="button" class="mode-toggle-btn active" id="btnModeOnline" data-mode="online">🌐 Online</button>
           <button type="button" class="mode-toggle-btn" id="btnModeOffline" data-mode="offline">⚡ Offline</button>
         </div>
-        <button class="btn btn-outline" id="btnOpenAddCustomModal" title="Add Custom Online Provider or Model">
-          ➕ Add Model
-        </button>
-        <button class="btn btn-outline" id="btnOpenKeysModal">
-          🔑 API Keys <span class="badge" id="totalKeysBadge">0</span>
-        </button>
       </div>
     </header>
 
-    <!-- Token Counter Dashboard Bar -->
-    <section class="token-dashboard">
-      <div class="token-card" id="cardAllowance" title="Click to edit token allowance">
-        <div class="token-label">🎯 ALLOWANCE</div>
-        <div class="token-val" id="valAllowance">500,000</div>
-        <div class="token-sub">Total Token Budget ✏️</div>
-      </div>
-      <div class="token-card">
-        <div class="token-label">📈 USED TOKENS</div>
-        <div class="token-val" id="valUsed">0</div>
-        <div class="token-sub">Cumulative Consumed</div>
-      </div>
-      <div class="token-card highlight">
-        <div class="token-label">💰 BALANCE</div>
-        <div class="token-val" id="valBalance">500,000</div>
-        <div class="token-sub">Remaining Allowance</div>
-      </div>
-      <div class="token-card speed">
-        <div class="token-label">⚡ PROMPT SPEED</div>
-        <div class="token-val" id="valSpeed">0 <span class="unit">t/s</span></div>
-        <div class="token-sub">Tokens Per Second</div>
-      </div>
-    </section>
+    <!-- ========================================================= -->
+    <!-- PAGE 1: MAIN PAGE (Token Calculators & Chat/Interaction)  -->
+    <!-- ========================================================= -->
+    <section class="page-view active" id="pageMain">
+      <!-- Token Counter Dashboard Bar -->
+      <section class="token-dashboard">
+        <div class="token-card" id="cardAllowance" title="Click to edit token allowance">
+          <div class="token-label">🎯 ALLOWANCE</div>
+          <div class="token-val" id="valAllowance">500,000</div>
+          <div class="token-sub">Total Token Budget ✏️</div>
+        </div>
+        <div class="token-card">
+          <div class="token-label">📈 USED TOKENS</div>
+          <div class="token-val" id="valUsed">0</div>
+          <div class="token-sub">Cumulative Consumed</div>
+        </div>
+        <div class="token-card highlight">
+          <div class="token-label">💰 BALANCE</div>
+          <div class="token-val" id="valBalance">500,000</div>
+          <div class="token-sub">Remaining Allowance</div>
+        </div>
+        <div class="token-card speed">
+          <div class="token-label">⚡ PROMPT SPEED</div>
+          <div class="token-val" id="valSpeed">0 <span class="unit">t/s</span></div>
+          <div class="token-sub">Tokens Per Second</div>
+        </div>
+      </section>
 
-    <!-- Provider & Model Control Bar -->
-    <section class="controls-bar">
-      <div class="control-item">
-        <label for="providerSelect">AI Provider</label>
-        <select id="providerSelect" class="form-select">
-          <option value="offline">⚡ Offline / Local Engine</option>
-          <option value="groq">Groq (Ultra-Fast LPU)</option>
-          <option value="gemini">Google Gemini</option>
-          <option value="openai">OpenAI Compatible</option>
-        </select>
-      </div>
-
-      <div class="control-item flex-grow">
-        <label for="modelSelect">AI Model</label>
-        <select id="modelSelect" class="form-select">
-          <!-- Populated dynamically -->
-        </select>
-      </div>
-
-      <div class="control-buttons">
-        <button class="btn btn-accent" id="btnTestModel" title="Test active provider and model">
-          <span id="testBtnSpinner" class="spinner" style="display: none;"></span>
-          <span id="testBtnIcon">⚡</span> Test Model
+      <!-- Active Model Info Banner -->
+      <div class="active-model-bar">
+        <div class="active-model-info">
+          <span class="pulse-dot"></span>
+          <span class="active-model-label">Active Engine:</span>
+          <span class="active-model-name" id="mainActiveModelText">Groq &bull; Qwen 3.8 27B</span>
+        </div>
+        <button type="button" class="btn-link-settings" id="btnJumpToSettings">
+          Manage Providers & Keys ⚙️
         </button>
       </div>
+
+      <!-- Chat Viewport -->
+      <main class="chat-viewport" id="chatViewport">
+        <div class="chat-stream" id="chatStream">
+          <!-- Welcome Hero -->
+          <div class="welcome-hero" id="welcomeHero">
+            <div class="hero-icon">✨</div>
+            <h2>Assalam-o-Alaikum! Main Jena hoon.</h2>
+            <p>Aapki autonomous hybrid AI agent aur pair programmer. Mere paas dohra engine hai:</p>
+            <div class="hero-features">
+              <div class="feature-chip">⚡ <strong>Offline Local:</strong> Battery, RAM, Disk, Time & Math (0 Tokens)</div>
+              <div class="feature-chip">🌐 <strong>Online Cloud:</strong> Coding, Debugging & High-Speed LLMs</div>
+            </div>
+            <p class="quick-title">Quick Actions Try Karein:</p>
+            <div class="quick-prompts">
+              <button class="prompt-chip" data-prompt="battery check karo">🔋 Battery Check</button>
+              <button class="prompt-chip" data-prompt="kitni ram free hai">🧠 RAM Report</button>
+              <button class="prompt-chip" data-prompt="storage check karo">💾 Disk Space</button>
+              <button class="prompt-chip" data-prompt="aaj kya date hai">🕒 Date & Time</button>
+              <button class="prompt-chip" data-prompt="hisab karo 1500 * 24">🧮 Math: 1500 * 24</button>
+              <button class="prompt-chip" data-prompt="tum kon ho">🤖 Jena Intro</button>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <!-- Chat Input Area -->
+      <footer class="app-footer">
+        <form id="chatForm" class="chat-form">
+          <div class="input-wrapper">
+            <textarea
+              id="promptInput"
+              placeholder="Jena se kuch bhi poochhein ya task dein (Roman Urdu / English)..."
+              rows="1"
+              required
+            ></textarea>
+            <button type="submit" id="btnSend" class="btn-send" title="Send (Enter)">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M22 2L11 13M22 2L15 22L11 13L2 9L22 2Z" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+          </div>
+          <div class="input-footer">
+            <span class="mode-tag" id="inputModeTag">⚡ Hybrid Mode: Routine tasks run locally • Complex queries use Cloud AI</span>
+            <span class="keys-shortcut">Press <strong>Enter</strong> to send • <strong>Shift+Enter</strong> for newline</span>
+          </div>
+        </form>
+      </footer>
     </section>
 
-    <!-- Test Feedback Banner -->
-    <div id="testFeedback" class="test-feedback-banner" style="display: none;"></div>
-
-    <!-- Chat Viewport -->
-    <main class="chat-viewport" id="chatViewport">
-      <div class="chat-stream" id="chatStream">
-        <!-- Welcome Hero -->
-        <div class="welcome-hero" id="welcomeHero">
-          <div class="hero-icon">✨</div>
-          <h2>Assalam-o-Alaikum! Main Jena hoon.</h2>
-          <p>Aapki autonomous hybrid AI agent aur pair programmer. Mere paas dohra engine hai:</p>
-          <div class="hero-features">
-            <div class="feature-chip">⚡ <strong>Offline Local:</strong> Battery, RAM, Disk, Time & Math (0 Tokens)</div>
-            <div class="feature-chip">🌐 <strong>Online Cloud:</strong> Coding, Debugging & High-Speed LLMs</div>
+    <!-- ========================================================= -->
+    <!-- PAGE 2: SECOND PAGE (Providers, Models & API Keys)        -->
+    <!-- ========================================================= -->
+    <section class="page-view" id="pageSettings" style="display: none;">
+      <div class="settings-page-container">
+        <div class="settings-page-header">
+          <div>
+            <h2>⚙️ Providers, Models & API Keys</h2>
+            <p>Select active AI engine, manage API keys with automatic rotation, aur naye providers ya models add karein.</p>
           </div>
-          <p class="quick-title">Quick Actions Try Karein:</p>
-          <div class="quick-prompts">
-            <button class="prompt-chip" data-prompt="battery check karo">🔋 Battery Check</button>
-            <button class="prompt-chip" data-prompt="kitni ram free hai">🧠 RAM Report</button>
-            <button class="prompt-chip" data-prompt="storage check karo">💾 Disk Space</button>
-            <button class="prompt-chip" data-prompt="aaj kya date hai">🕒 Date & Time</button>
-            <button class="prompt-chip" data-prompt="hisab karo 1500 * 24">🧮 Math: 1500 * 24</button>
-            <button class="prompt-chip" data-prompt="tum kon ho">🤖 Jena Intro</button>
-          </div>
-        </div>
-      </div>
-    </main>
-
-    <!-- Chat Input Area -->
-    <footer class="app-footer">
-      <form id="chatForm" class="chat-form">
-        <div class="input-wrapper">
-          <textarea
-            id="promptInput"
-            placeholder="Jena se kuch bhi poochhein ya task dein (Roman Urdu / English)..."
-            rows="1"
-            required
-          ></textarea>
-          <button type="submit" id="btnSend" class="btn-send" title="Send (Enter)">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5">
-              <path d="M22 2L11 13M22 2L15 22L11 13L2 9L22 2Z" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
+          <button class="btn btn-outline" id="btnBackToChat">
+            ← Wapas Chat Par Jayein
           </button>
         </div>
-        <div class="input-footer">
-          <span class="mode-tag" id="inputModeTag">⚡ Hybrid Mode: Routine tasks run locally • Complex queries use Cloud AI</span>
-          <span class="keys-shortcut">Press <strong>Enter</strong> to send • <strong>Shift+Enter</strong> for newline</span>
-        </div>
-      </form>
-    </footer>
-  </div>
 
-  <!-- Multi-API Keys Management Modal -->
-  <div class="modal-backdrop" id="keysModal" style="display: none;">
-    <div class="modal-card">
-      <div class="modal-header">
-        <h3>🔑 Multi-API Key Manager</h3>
-        <button class="btn-close" id="btnCloseKeysModal">&times;</button>
-      </div>
-      <div class="modal-body">
-        <p class="modal-desc">
-          Aap har provider ke liye aik ya <strong>multiple API keys</strong> add kar sakte hain. Jab aik key par rate limit aye to Jena doosri key par khud rotate ho jayegi.
-        </p>
-
-        <!-- Add Key Box -->
-        <div class="add-key-box">
-          <div class="form-row">
-            <select id="newKeyProvider" class="form-select">
-              <option value="groq">Groq</option>
-              <option value="gemini">Google Gemini</option>
-              <option value="openai">OpenAI Compatible</option>
-            </select>
-            <input type="password" id="newKeyValue" class="form-control flex-grow" placeholder="Enter API Key (e.g. gsk_... ya AIzaSy...)">
-            <button class="btn btn-primary" id="btnAddKey">Add Key</button>
-          </div>
-        </div>
-
-        <hr class="divider">
-
-        <h4>📋 Configured API Keys</h4>
-        <div class="keys-list" id="keysListContainer">
-          <!-- Populated dynamically -->
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" id="btnDoneKeys">Done</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Allowance Edit Modal -->
-  <div class="modal-backdrop" id="allowanceModal" style="display: none;">
-    <div class="modal-card modal-sm">
-      <div class="modal-header">
-        <h3>🎯 Token Allowance Budget</h3>
-        <button class="btn-close" id="btnCloseAllowanceModal">&times;</button>
-      </div>
-      <div class="modal-body">
-        <label for="inputAllowance">Apna daily ya monthly token allowance set karein:</label>
-        <input type="number" id="inputAllowance" class="form-control" value="500000" min="1000" step="50000">
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" id="btnCancelAllowance">Cancel</button>
-        <button class="btn btn-primary" id="btnSaveAllowance">Save Budget</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Add Provider / Model Modal -->
-  <div class="modal-backdrop" id="customModal" style="display: none;">
-    <div class="modal-card">
-      <div class="modal-header">
-        <h3>➕ Add Online Provider or Model</h3>
-        <button class="btn-close" id="btnCloseCustomModal">&times;</button>
-      </div>
-      <div class="modal-body">
-        <div class="modal-tabs">
-          <button type="button" class="tab-btn active" id="tabBtnAddModel">✨ Add Model</button>
-          <button type="button" class="tab-btn" id="tabBtnAddProvider">🌐 Add Online Provider</button>
-        </div>
-
-        <!-- Section 1: Add Model to Provider -->
-        <div class="tab-pane active" id="paneAddModel">
-          <p class="modal-desc">
-            Kisi bhi provider (Groq, Gemini, OpenAI, ya custom) mein <strong>naya model</strong> add karein. Yeh backend config mein save ho jayega.
-          </p>
-          <div class="form-group">
-            <label for="customModelProvider">Select Target Provider:</label>
-            <select id="customModelProvider" class="form-select">
-              <!-- Populated dynamically -->
-            </select>
-          </div>
-          <div class="form-group">
-            <label for="customModelId">Model ID / Name (Exact API identifier):</label>
-            <input type="text" id="customModelId" class="form-control" placeholder="e.g. llama-3.3-70b-specdec ya gemini-1.5-flash-8b">
-          </div>
-          <div class="form-group">
-            <label for="customModelName">Display Label (Optional):</label>
-            <input type="text" id="customModelName" class="form-control" placeholder="e.g. Llama 3.3 Speculative (Fast)">
-          </div>
-          <button class="btn btn-primary" id="btnSaveCustomModel" style="width: 100%; margin-top: 6px;">➕ Save Model</button>
-        </div>
-
-        <!-- Section 2: Add New Online Provider -->
-        <div class="tab-pane" id="paneAddProvider" style="display: none;">
-          <p class="modal-desc">
-            Koi bhi <strong>OpenAI-compatible online provider</strong> (jaise OpenRouter, Together AI, Mistral, DeepSeek, Local Ollama, vLLM) add karein.
-          </p>
-          <div class="form-row">
-            <div class="form-group flex-grow">
-              <label for="newProviderId">Provider ID (slug):</label>
-              <input type="text" id="newProviderId" class="form-control" placeholder="e.g. openrouter">
+        <div class="settings-grid">
+          <!-- Card 1: Active Provider & Model Selection -->
+          <div class="settings-card">
+            <div class="settings-card-header">
+              <h3>🎯 Active Provider & Model Selection</h3>
+              <span class="badge" id="activeProviderBadge">ACTIVE</span>
             </div>
-            <div class="form-group flex-grow">
-              <label for="newProviderName">Provider Display Name:</label>
-              <input type="text" id="newProviderName" class="form-control" placeholder="e.g. OpenRouter (Unified API)">
+            <div class="settings-card-body">
+              <p class="section-desc">Active provider aur model select karein aur connection test karein:</p>
+              <div class="form-row">
+                <div class="form-group flex-grow">
+                  <label for="providerSelect">AI Provider:</label>
+                  <select id="providerSelect" class="form-select">
+                    <!-- Populated dynamically -->
+                  </select>
+                </div>
+                <div class="form-group flex-grow">
+                  <label for="modelSelect">AI Model:</label>
+                  <select id="modelSelect" class="form-select">
+                    <!-- Populated dynamically -->
+                  </select>
+                </div>
+              </div>
+              <div style="margin-top: 12px; display: flex; align-items: center; gap: 10px;">
+                <button class="btn btn-accent" id="btnTestModel" title="Test active provider and model">
+                  <span id="testBtnSpinner" class="spinner" style="display: none;"></span>
+                  <span id="testBtnIcon">⚡</span> Test Active Model
+                </button>
+              </div>
+              <div id="testFeedback" class="test-feedback-banner" style="display: none; margin-top: 12px;"></div>
             </div>
           </div>
-          <div class="form-group">
-            <label for="newProviderEndpoint">API Endpoint / Base URL:</label>
-            <input type="text" id="newProviderEndpoint" class="form-control" placeholder="e.g. https://openrouter.ai/api/v1/chat/completions">
-          </div>
-          <div class="form-row">
-            <div class="form-group flex-grow">
-              <label for="newProviderDefaultModelId">Default Model ID:</label>
-              <input type="text" id="newProviderDefaultModelId" class="form-control" placeholder="e.g. deepseek/deepseek-chat">
-            </div>
-            <div class="form-group flex-grow">
-              <label for="newProviderDefaultModelName">Model Label:</label>
-              <input type="text" id="newProviderDefaultModelName" class="form-control" placeholder="e.g. DeepSeek Chat">
-            </div>
-          </div>
-          <div class="form-group">
-            <label for="newProviderApiKey">API Key (Optional abhi daalein):</label>
-            <input type="password" id="newProviderApiKey" class="form-control" placeholder="e.g. sk-or-v1-...">
-          </div>
-          <button class="btn btn-primary" id="btnSaveCustomProvider" style="width: 100%; margin-top: 6px;">🚀 Save Online Provider</button>
-        </div>
 
-        <div id="customModalFeedback" class="test-feedback-banner" style="display: none; margin-top: 10px;"></div>
+          <!-- Card 2: API Keys Management -->
+          <div class="settings-card">
+            <div class="settings-card-header">
+              <h3>🔑 API Keys Manager (Multi-Key Rotation)</h3>
+              <span class="badge" id="totalKeysBadge">0 Keys</span>
+            </div>
+            <div class="settings-card-body">
+              <p class="section-desc">
+                Har provider ke liye aik ya multiple API keys add karein. Rate limit (429) anay par Jena khud doosri key par rotate kar legi.
+              </p>
+              <div class="form-row">
+                <div class="form-group" style="width: 160px;">
+                  <label for="newKeyProvider">Select Provider:</label>
+                  <select id="newKeyProvider" class="form-select">
+                    <!-- Populated dynamically -->
+                  </select>
+                </div>
+                <div class="form-group flex-grow">
+                  <label for="newKeyValue">API Key:</label>
+                  <input type="password" id="newKeyValue" class="form-control" placeholder="Enter API Key (e.g. gsk_... ya AIzaSy...)">
+                </div>
+                <div class="form-group" style="align-self: flex-end;">
+                  <button class="btn btn-primary" id="btnAddKey">➕ Add Key</button>
+                </div>
+              </div>
+
+              <hr class="divider" style="margin: 14px 0;">
+
+              <h4 style="font-size: 12px; color: var(--text-secondary); margin-bottom: 8px;">📋 Configured Keys:</h4>
+              <div class="keys-list" id="keysListContainer">
+                <!-- Populated dynamically -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 3: Add Custom Model to Existing Provider -->
+          <div class="settings-card">
+            <div class="settings-card-header">
+              <h3>✨ Add Model to Provider</h3>
+            </div>
+            <div class="settings-card-body">
+              <p class="section-desc">
+                Kisi bhi provider (Groq, Gemini, OpenAI, ya custom) mein naya model ID add karein jo backend mein save ho jayega.
+              </p>
+              <div class="form-row">
+                <div class="form-group" style="width: 160px;">
+                  <label for="customModelProvider">Target Provider:</label>
+                  <select id="customModelProvider" class="form-select">
+                    <!-- Populated dynamically -->
+                  </select>
+                </div>
+                <div class="form-group flex-grow">
+                  <label for="customModelId">Model ID (Exact API string):</label>
+                  <input type="text" id="customModelId" class="form-control" placeholder="e.g. llama-3.3-70b-specdec">
+                </div>
+                <div class="form-group flex-grow">
+                  <label for="customModelName">Display Label (Optional):</label>
+                  <input type="text" id="customModelName" class="form-control" placeholder="e.g. Llama 3.3 Speculative">
+                </div>
+              </div>
+              <div style="margin-top: 12px;">
+                <button class="btn btn-primary" id="btnSaveCustomModel">➕ Save Model</button>
+              </div>
+
+              <div id="customModelFeedback" class="test-feedback-banner" style="display: none; margin-top: 12px;"></div>
+
+              <div id="customModelsListContainer" style="margin-top: 12px;">
+                <!-- Populated dynamically -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 4: Add New Online Provider -->
+          <div class="settings-card">
+            <div class="settings-card-header">
+              <h3>🌐 Add New Online Provider</h3>
+            </div>
+            <div class="settings-card-body">
+              <p class="section-desc">
+                Naya OpenAI-compatible cloud provider (OpenRouter, Together AI, Mistral, DeepSeek, Local Ollama) connect karein:
+              </p>
+              <div class="form-row">
+                <div class="form-group flex-grow">
+                  <label for="newProviderId">Provider ID (slug):</label>
+                  <input type="text" id="newProviderId" class="form-control" placeholder="e.g. openrouter">
+                </div>
+                <div class="form-group flex-grow">
+                  <label for="newProviderName">Provider Display Name:</label>
+                  <input type="text" id="newProviderName" class="form-control" placeholder="e.g. OpenRouter (Unified API)">
+                </div>
+              </div>
+              <div class="form-group" style="margin-top: 8px;">
+                <label for="newProviderEndpoint">API Endpoint / Base URL:</label>
+                <input type="text" id="newProviderEndpoint" class="form-control" placeholder="e.g. https://openrouter.ai/api/v1/chat/completions">
+              </div>
+              <div class="form-row" style="margin-top: 8px;">
+                <div class="form-group flex-grow">
+                  <label for="newProviderDefaultModelId">Default Model ID:</label>
+                  <input type="text" id="newProviderDefaultModelId" class="form-control" placeholder="e.g. deepseek/deepseek-chat">
+                </div>
+                <div class="form-group flex-grow">
+                  <label for="newProviderDefaultModelName">Model Label:</label>
+                  <input type="text" id="newProviderDefaultModelName" class="form-control" placeholder="e.g. DeepSeek Chat">
+                </div>
+              </div>
+              <div class="form-group" style="margin-top: 8px;">
+                <label for="newProviderApiKey">Initial API Key (Optional):</label>
+                <input type="password" id="newProviderApiKey" class="form-control" placeholder="sk-or-v1-...">
+              </div>
+              <div style="margin-top: 12px;">
+                <button class="btn btn-primary" id="btnSaveCustomProvider">🚀 Save Online Provider</button>
+              </div>
+
+              <div id="customProviderFeedback" class="test-feedback-banner" style="display: none; margin-top: 12px;"></div>
+
+              <div id="customProvidersListContainer" style="margin-top: 12px;">
+                <!-- Populated dynamically -->
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" id="btnCloseCustomModalBtn">Close</button>
+    </section>
+
+    <!-- Allowance Edit Modal (quick token budget edit on allowance card click) -->
+    <div class="modal-backdrop" id="allowanceModal" style="display: none;">
+      <div class="modal-card modal-sm">
+        <div class="modal-header">
+          <h3>🎯 Token Allowance Budget</h3>
+          <button class="btn-close" id="btnCloseAllowanceModal">&times;</button>
+        </div>
+        <div class="modal-body">
+          <label for="inputAllowance">Apna daily ya monthly token allowance set karein:</label>
+          <input type="number" id="inputAllowance" class="form-control" value="500000" min="1000" step="50000">
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" id="btnCancelAllowance">Cancel</button>
+          <button class="btn btn-primary" id="btnSaveAllowance">Save Budget</button>
+        </div>
       </div>
     </div>
   </div>

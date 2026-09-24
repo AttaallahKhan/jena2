@@ -6,12 +6,15 @@ Jena v0.3 ko ground zero se aik ultra-minimalist, lightweight aur powerful archi
 
 ## 🌟 Core Features (Jena v0.3)
 
-1. **Minimalist Ground-Zero Architecture (Only 5 Files):**
-   - `server.js` : Unified backend (Hybrid AI Engine, Multi-Key Manager, Token Tracker, Test Engine, HTTP/SSE Server & CLI).
-   - `public/index.html` : Modern responsive landing page & chat interface.
-   - `public/style.css` : Dark-mode cybernetic UI design.
-   - `public/app.js` : Reactive client logic, live token metrics, and multi-key CRUD.
-   - `package.json` : Project metadata.
+1. **Minimalist 2-Page Architecture (Only 5 Files):**
+   - **Page 1 (💬 Main / Chat):** Token calculators (Allowance, Used, Balance, Speed), Active Engine Indicator, Offline/Online switch, aur full chat conversation viewport.
+   - **Page 2 (⚙️ Providers & Models):** Active AI Provider & Model dropdowns, connection tester (`⚡ Test Model`), Multi-API Key Manager, Add Custom Model, aur Add New Online Provider forms.
+   - Files:
+     - `server.js` : Unified backend (Hybrid AI Engine, Multi-Key Manager, Token Tracker, Test Engine, HTTP/SSE Server & CLI).
+     - `public/index.html` : 2-Page responsive GUI interface.
+     - `public/style.css` : Dark-mode cybernetic UI design.
+     - `public/app.js` : Reactive client routing, live token metrics, and multi-key CRUD.
+     - `package.json` : Project metadata.
 
 2. **Dohra Dimaagh & Mode Switch (Hybrid AI Architecture):**
    - 🔘 **Local / Online Mode Switch:** Header mein direct `[🌐 Online]` aur `[⚡ Offline]` switch button mojood hai.

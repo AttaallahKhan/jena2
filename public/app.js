@@ -1,29 +1,28 @@
 /**
- * Jena v0.3 — Frontend Application Logic
+ * Jena v0.3 — Frontend Application Logic (2-Page Architecture)
  */
 
 document.addEventListener('DOMContentLoaded', () => {
-  // DOM Elements
-  const providerSelect = document.getElementById('providerSelect');
-  const modelSelect = document.getElementById('modelSelect');
-  const btnTestModel = document.getElementById('btnTestModel');
-  const testBtnSpinner = document.getElementById('testBtnSpinner');
-  const testBtnIcon = document.getElementById('testBtnIcon');
-  const testFeedback = document.getElementById('testFeedback');
+  // Navigation Tabs & Pages
+  const tabNavMain = document.getElementById('tabNavMain');
+  const tabNavSettings = document.getElementById('tabNavSettings');
+  const pageMain = document.getElementById('pageMain');
+  const pageSettings = document.getElementById('pageSettings');
+  const btnJumpToSettings = document.getElementById('btnJumpToSettings');
+  const btnBackToChat = document.getElementById('btnBackToChat');
 
-  // Mode Switch
-  const btnModeOnline = document.getElementById('btnModeOnline');
-  const btnModeOffline = document.getElementById('btnModeOffline');
-  const inputModeTag = document.getElementById('inputModeTag');
-
-  // Token Dashboard
+  // Main Page Elements
+  const mainActiveModelText = document.getElementById('mainActiveModelText');
   const valAllowance = document.getElementById('valAllowance');
   const valUsed = document.getElementById('valUsed');
   const valBalance = document.getElementById('valBalance');
   const valSpeed = document.getElementById('valSpeed');
   const cardAllowance = document.getElementById('cardAllowance');
 
-  // Chat Viewport
+  const btnModeOnline = document.getElementById('btnModeOnline');
+  const btnModeOffline = document.getElementById('btnModeOffline');
+  const inputModeTag = document.getElementById('inputModeTag');
+
   const chatViewport = document.getElementById('chatViewport');
   const chatStream = document.getElementById('chatStream');
   const welcomeHero = document.getElementById('welcomeHero');
@@ -31,39 +30,31 @@ document.addEventListener('DOMContentLoaded', () => {
   const promptInput = document.getElementById('promptInput');
   const btnSend = document.getElementById('btnSend');
 
-  // Multi-Key Modal Elements
-  const keysModal = document.getElementById('keysModal');
-  const btnOpenKeysModal = document.getElementById('btnOpenKeysModal');
-  const btnCloseKeysModal = document.getElementById('btnCloseKeysModal');
-  const btnDoneKeys = document.getElementById('btnDoneKeys');
+  // Settings Page Elements
+  const providerSelect = document.getElementById('providerSelect');
+  const modelSelect = document.getElementById('modelSelect');
+  const activeProviderBadge = document.getElementById('activeProviderBadge');
+  const btnTestModel = document.getElementById('btnTestModel');
+  const testBtnSpinner = document.getElementById('testBtnSpinner');
+  const testBtnIcon = document.getElementById('testBtnIcon');
+  const testFeedback = document.getElementById('testFeedback');
+
+  // API Keys Elements
   const totalKeysBadge = document.getElementById('totalKeysBadge');
-  const keysListContainer = document.getElementById('keysListContainer');
   const newKeyProvider = document.getElementById('newKeyProvider');
   const newKeyValue = document.getElementById('newKeyValue');
   const btnAddKey = document.getElementById('btnAddKey');
+  const keysListContainer = document.getElementById('keysListContainer');
 
-  // Allowance Modal Elements
-  const allowanceModal = document.getElementById('allowanceModal');
-  const inputAllowance = document.getElementById('inputAllowance');
-  const btnCloseAllowanceModal = document.getElementById('btnCloseAllowanceModal');
-  const btnCancelAllowance = document.getElementById('btnCancelAllowance');
-  const btnSaveAllowance = document.getElementById('btnSaveAllowance');
-
-  // Custom Provider / Model Modal Elements
-  const customModal = document.getElementById('customModal');
-  const btnOpenAddCustomModal = document.getElementById('btnOpenAddCustomModal');
-  const btnCloseCustomModal = document.getElementById('btnCloseCustomModal');
-  const btnCloseCustomModalBtn = document.getElementById('btnCloseCustomModalBtn');
-  const tabBtnAddModel = document.getElementById('tabBtnAddModel');
-  const tabBtnAddProvider = document.getElementById('tabBtnAddProvider');
-  const paneAddModel = document.getElementById('paneAddModel');
-  const paneAddProvider = document.getElementById('paneAddProvider');
-
+  // Add Custom Model Elements
   const customModelProvider = document.getElementById('customModelProvider');
   const customModelId = document.getElementById('customModelId');
   const customModelName = document.getElementById('customModelName');
   const btnSaveCustomModel = document.getElementById('btnSaveCustomModel');
+  const customModelFeedback = document.getElementById('customModelFeedback');
+  const customModelsListContainer = document.getElementById('customModelsListContainer');
 
+  // Add Custom Provider Elements
   const newProviderId = document.getElementById('newProviderId');
   const newProviderName = document.getElementById('newProviderName');
   const newProviderEndpoint = document.getElementById('newProviderEndpoint');
@@ -71,7 +62,15 @@ document.addEventListener('DOMContentLoaded', () => {
   const newProviderDefaultModelName = document.getElementById('newProviderDefaultModelName');
   const newProviderApiKey = document.getElementById('newProviderApiKey');
   const btnSaveCustomProvider = document.getElementById('btnSaveCustomProvider');
-  const customModalFeedback = document.getElementById('customModalFeedback');
+  const customProviderFeedback = document.getElementById('customProviderFeedback');
+  const customProvidersListContainer = document.getElementById('customProvidersListContainer');
+
+  // Allowance Modal Elements
+  const allowanceModal = document.getElementById('allowanceModal');
+  const inputAllowance = document.getElementById('inputAllowance');
+  const btnCloseAllowanceModal = document.getElementById('btnCloseAllowanceModal');
+  const btnCancelAllowance = document.getElementById('btnCancelAllowance');
+  const btnSaveAllowance = document.getElementById('btnSaveAllowance');
 
   // State
   let activeConfig = null;
@@ -84,8 +83,48 @@ document.addEventListener('DOMContentLoaded', () => {
   init();
 
   async function init() {
+    setupNavigation();
     setupEventListeners();
     await fetchConfig();
+  }
+
+  // --- 2-PAGE NAVIGATION SYSTEM ---
+  function setupNavigation() {
+    tabNavMain.addEventListener('click', () => showPage('main'));
+    tabNavSettings.addEventListener('click', () => showPage('settings'));
+    if (btnJumpToSettings) btnJumpToSettings.addEventListener('click', () => showPage('settings'));
+    if (btnBackToChat) btnBackToChat.addEventListener('click', () => showPage('main'));
+
+    // Handle initial route
+    const hash = window.location.hash.toLowerCase();
+    const path = window.location.pathname.toLowerCase();
+    if (hash === '#settings' || path === '/settings' || path === '/models' || path === '/providers') {
+      showPage('settings', false);
+    } else {
+      showPage('main', false);
+    }
+
+    window.addEventListener('hashchange', () => {
+      const h = window.location.hash.toLowerCase();
+      if (h === '#settings') showPage('settings', false);
+      else showPage('main', false);
+    });
+  }
+
+  function showPage(pageName, updateHash = true) {
+    if (pageName === 'settings') {
+      pageMain.style.display = 'none';
+      pageSettings.style.display = 'flex';
+      tabNavSettings.classList.add('active');
+      tabNavMain.classList.remove('active');
+      if (updateHash) window.location.hash = '#settings';
+    } else {
+      pageSettings.style.display = 'none';
+      pageMain.style.display = 'flex';
+      tabNavMain.classList.add('active');
+      tabNavSettings.classList.remove('active');
+      if (updateHash) window.location.hash = '#chat';
+    }
   }
 
   // --- API DATA FETCHING ---
@@ -99,14 +138,24 @@ document.addEventListener('DOMContentLoaded', () => {
       // Update Token Dashboard
       updateTokenDashboard(data.tokens);
 
-      // Populate Provider Dropdown
+      // Populate Provider Dropdown on Page 2
       populateProviders(data.providers, data.activeProvider);
 
-      // Populate Model Dropdown
+      // Populate Model Dropdown on Page 2
       populateModels(data.providers, data.activeProvider, data.activeModel);
 
-      // Populate Providers in Modals
+      // Populate Providers in Key / Custom selects
       populateModalProviders(data.providers);
+
+      // Update Active Model Pill on Main Page
+      updateMainActiveModelPill();
+
+      // Render Keys List on Page 2
+      renderKeysList(data.maskedKeys);
+
+      // Render Custom Models & Providers Lists on Page 2
+      renderCustomModelsList(data.customModels);
+      renderCustomProvidersList(data.customProviders);
 
       // Update Mode state & UI
       if (data.mode === 'offline' || data.activeProvider === 'offline') {
@@ -119,9 +168,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // Update Keys Count Badge
       updateKeysBadge(data.keysCount);
-
-      // Render Keys in Modal
-      renderKeysList(data.maskedKeys);
     } catch (err) {
       console.error('Config load error:', err);
     }
@@ -133,6 +179,27 @@ document.addEventListener('DOMContentLoaded', () => {
     valUsed.textContent = Number(tokens.used || 0).toLocaleString();
     valBalance.textContent = Number(tokens.balance || 0).toLocaleString();
     valSpeed.innerHTML = `${tokens.lastPromptSpeed || 0} <span class="unit">t/s</span>`;
+  }
+
+  function updateMainActiveModelPill() {
+    if (!activeConfig || !activeConfig.providers) return;
+    const p = activeConfig.activeProvider;
+    const m = activeConfig.activeModel;
+
+    if (p === 'offline') {
+      mainActiveModelText.textContent = '⚡ Jena Local Core (Offline • 0 Tokens)';
+      activeProviderBadge.textContent = 'OFFLINE';
+      activeProviderBadge.style.background = 'rgba(16, 185, 129, 0.2)';
+      activeProviderBadge.style.color = '#34d399';
+    } else {
+      const pName = activeConfig.providers[p]?.name?.split('(')[0]?.trim() || p;
+      const modelObj = (activeConfig.providers[p]?.models || []).find(x => x.id === m);
+      const mName = modelObj ? modelObj.name.split('(')[0]?.trim() : m;
+      mainActiveModelText.textContent = `${pName} • ${mName}`;
+      activeProviderBadge.textContent = 'ONLINE';
+      activeProviderBadge.style.background = 'rgba(0, 210, 255, 0.2)';
+      activeProviderBadge.style.color = '#38bdf8';
+    }
   }
 
   function populateProviders(providersObj, selectedProvider) {
@@ -177,7 +244,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function populateModalProviders(providersObj) {
     if (!providersObj) return;
 
-    // 1. Populate Target Provider for Add Model Modal (exclude offline)
+    // 1. Populate Target Provider for Add Model Form (exclude offline)
     if (customModelProvider) {
       customModelProvider.innerHTML = '';
       Object.keys(providersObj).forEach(key => {
@@ -189,7 +256,7 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }
 
-    // 2. Populate newKeyProvider in Keys Modal (exclude offline)
+    // 2. Populate newKeyProvider in API Keys Form (exclude offline)
     if (newKeyProvider) {
       const currentSelected = newKeyProvider.value;
       newKeyProvider.innerHTML = '';
@@ -207,7 +274,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function updateKeysBadge(keysCountObj) {
     if (!keysCountObj) return;
     const total = Object.values(keysCountObj).reduce((a, b) => a + b, 0);
-    totalKeysBadge.textContent = total;
+    totalKeysBadge.textContent = `${total} Keys`;
   }
 
   function renderKeysList(maskedKeysObj) {
@@ -235,6 +302,64 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (!hasAnyKey) {
       keysListContainer.innerHTML = `<div style="text-align:center; padding: 12px; color: var(--text-muted); font-size: 12px;">Koi API key configured nahi hai. Upar se add karein.</div>`;
+    }
+  }
+
+  function renderCustomModelsList(customModelsObj) {
+    if (!customModelsListContainer) return;
+    customModelsListContainer.innerHTML = '';
+    if (!customModelsObj || Object.keys(customModelsObj).length === 0) return;
+
+    let rows = [];
+    Object.entries(customModelsObj).forEach(([pid, models]) => {
+      if (Array.isArray(models)) {
+        models.forEach(m => {
+          rows.push(`
+            <div class="custom-item-row">
+              <div>
+                <span class="key-provider-tag">${pid}</span>
+                <span class="custom-item-name">${escapeHtml(m.id)}</span>
+                <span class="custom-item-sub">(${escapeHtml(m.name)})</span>
+              </div>
+              <button class="btn-del-item" data-action="del-custom-model" data-provider="${pid}" data-model="${m.id}">&times; Delete</button>
+            </div>
+          `);
+        });
+      }
+    });
+
+    if (rows.length > 0) {
+      customModelsListContainer.innerHTML = `
+        <h4 style="font-size: 12px; color: var(--text-secondary); margin-bottom: 6px;">Saved Custom Models:</h4>
+        ${rows.join('')}
+      `;
+    }
+  }
+
+  function renderCustomProvidersList(customProvidersObj) {
+    if (!customProvidersListContainer) return;
+    customProvidersListContainer.innerHTML = '';
+    if (!customProvidersObj || Object.keys(customProvidersObj).length === 0) return;
+
+    let rows = [];
+    Object.entries(customProvidersObj).forEach(([pid, pData]) => {
+      rows.push(`
+        <div class="custom-item-row">
+          <div>
+            <span class="key-provider-tag">${pid}</span>
+            <span class="custom-item-name">${escapeHtml(pData.name)}</span>
+            <span class="custom-item-sub">${escapeHtml(pData.endpoint)}</span>
+          </div>
+          <button class="btn-del-item" data-action="del-custom-provider" data-provider="${pid}">&times; Delete</button>
+        </div>
+      `);
+    });
+
+    if (rows.length > 0) {
+      customProvidersListContainer.innerHTML = `
+        <h4 style="font-size: 12px; color: var(--text-secondary); margin-bottom: 6px;">Saved Online Providers:</h4>
+        ${rows.join('')}
+      `;
     }
   }
 
@@ -273,6 +398,7 @@ document.addEventListener('DOMContentLoaded', () => {
       populateModels(activeConfig.providers, targetProvider, lastOnlineModel);
       await saveSettings({ mode: 'online', provider: targetProvider, model: modelSelect.value });
     }
+    updateMainActiveModelPill();
   }
 
   // --- EVENT LISTENERS ---
@@ -281,7 +407,7 @@ document.addEventListener('DOMContentLoaded', () => {
     btnModeOnline.addEventListener('click', () => handleSwitchMode('online'));
     btnModeOffline.addEventListener('click', () => handleSwitchMode('offline'));
 
-    // Provider Change Dropdown
+    // Provider Change Dropdown (Page 2)
     providerSelect.addEventListener('change', async () => {
       const newProvider = providerSelect.value;
       if (newProvider === 'offline') {
@@ -296,22 +422,24 @@ document.addEventListener('DOMContentLoaded', () => {
         const newModel = modelSelect.value;
         lastOnlineModel = newModel;
         await saveSettings({ mode: currentMode, provider: newProvider, model: newModel });
+        updateMainActiveModelPill();
       }
     });
 
-    // Model Change Dropdown
+    // Model Change Dropdown (Page 2)
     modelSelect.addEventListener('change', async () => {
       const newModel = modelSelect.value;
       if (currentMode === 'online') {
         lastOnlineModel = newModel;
       }
       await saveSettings({ model: newModel });
+      updateMainActiveModelPill();
     });
 
-    // Test Model Button
+    // Test Model Button (Page 2)
     btnTestModel.addEventListener('click', handleTestModel);
 
-    // Chat Submission
+    // Chat Submission (Page 1)
     chatForm.addEventListener('submit', (e) => {
       e.preventDefault();
       handleSendMessage();
@@ -343,21 +471,37 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
 
-    // Keys Modal
-    btnOpenKeysModal.addEventListener('click', () => { keysModal.style.display = 'flex'; });
-    btnCloseKeysModal.addEventListener('click', () => { keysModal.style.display = 'none'; });
-    btnDoneKeys.addEventListener('click', () => { keysModal.style.display = 'none'; });
-
-    // Add Key
+    // Add Key (Page 2)
     btnAddKey.addEventListener('click', handleAddKey);
 
-    // Delete Key (delegated)
+    // Delete Key (delegated on Page 2)
     keysListContainer.addEventListener('click', async (e) => {
       const delBtn = e.target.closest('.btn-del-key');
       if (delBtn) {
         const provider = delBtn.getAttribute('data-provider');
         const index = delBtn.getAttribute('data-index');
         await handleDeleteKey(provider, index);
+      }
+    });
+
+    // Save Custom Model (Page 2)
+    btnSaveCustomModel.addEventListener('click', handleSaveCustomModel);
+
+    // Save Custom Provider (Page 2)
+    btnSaveCustomProvider.addEventListener('click', handleSaveCustomProvider);
+
+    // Delete Custom Model / Provider (delegated on Page 2)
+    document.addEventListener('click', async (e) => {
+      const btn = e.target.closest('[data-action]');
+      if (!btn) return;
+      const action = btn.getAttribute('data-action');
+      if (action === 'del-custom-model') {
+        const p = btn.getAttribute('data-provider');
+        const m = btn.getAttribute('data-model');
+        await handleDeleteCustomModel(p, m);
+      } else if (action === 'del-custom-provider') {
+        const p = btn.getAttribute('data-provider');
+        await handleDeleteCustomProvider(p);
       }
     });
 
@@ -371,49 +515,6 @@ document.addEventListener('DOMContentLoaded', () => {
     btnCloseAllowanceModal.addEventListener('click', () => { allowanceModal.style.display = 'none'; });
     btnCancelAllowance.addEventListener('click', () => { allowanceModal.style.display = 'none'; });
     btnSaveAllowance.addEventListener('click', handleSaveAllowance);
-
-    // Custom Provider & Model Modal
-    if (btnOpenAddCustomModal) {
-      btnOpenAddCustomModal.addEventListener('click', () => {
-        customModalFeedback.style.display = 'none';
-        customModal.style.display = 'flex';
-      });
-    }
-    if (btnCloseCustomModal) {
-      btnCloseCustomModal.addEventListener('click', () => { customModal.style.display = 'none'; });
-    }
-    if (btnCloseCustomModalBtn) {
-      btnCloseCustomModalBtn.addEventListener('click', () => { customModal.style.display = 'none'; });
-    }
-
-    // Modal Tabs
-    if (tabBtnAddModel && tabBtnAddProvider) {
-      tabBtnAddModel.addEventListener('click', () => {
-        tabBtnAddModel.classList.add('active');
-        tabBtnAddProvider.classList.remove('active');
-        paneAddModel.style.display = 'flex';
-        paneAddProvider.style.display = 'none';
-        customModalFeedback.style.display = 'none';
-      });
-
-      tabBtnAddProvider.addEventListener('click', () => {
-        tabBtnAddProvider.classList.add('active');
-        tabBtnAddModel.classList.remove('active');
-        paneAddProvider.style.display = 'flex';
-        paneAddModel.style.display = 'none';
-        customModalFeedback.style.display = 'none';
-      });
-    }
-
-    // Save Custom Model
-    if (btnSaveCustomModel) {
-      btnSaveCustomModel.addEventListener('click', handleSaveCustomModel);
-    }
-
-    // Save Custom Provider
-    if (btnSaveCustomProvider) {
-      btnSaveCustomProvider.addEventListener('click', handleSaveCustomProvider);
-    }
   }
 
   // --- ACTIONS ---
@@ -425,6 +526,7 @@ document.addEventListener('DOMContentLoaded', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
+      await fetchConfig();
     } catch (e) {
       console.error('Settings save error:', e);
     }
@@ -516,18 +618,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const val = parseInt(inputAllowance.value, 10);
     if (!val || val <= 0) return;
     await saveSettings({ allowance: val });
-    await fetchConfig();
     allowanceModal.style.display = 'none';
   }
 
-  // Add Custom Model
+  // Add Custom Model (Page 2)
   async function handleSaveCustomModel() {
     const provider = customModelProvider.value;
     const modelId = customModelId.value.trim();
     const modelName = customModelName.value.trim() || modelId;
 
     if (!modelId) {
-      showCustomModalFeedback(false, 'Model ID enter karna lazmi hai.');
+      showFeedback(customModelFeedback, false, 'Model ID enter karna lazmi hai.');
       return;
     }
 
@@ -541,27 +642,40 @@ document.addEventListener('DOMContentLoaded', () => {
       const data = await res.json();
 
       if (data.success) {
-        showCustomModalFeedback(true, `✅ Model '${modelName}' kamyabi se save ho gaya!`);
+        showFeedback(customModelFeedback, true, `✅ Model '${modelName}' kamyabi se save ho gaya!`);
         customModelId.value = '';
         customModelName.value = '';
         await fetchConfig();
-        // Automatically select newly added model
+        // Select newly added model
         providerSelect.value = provider;
         populateModels(activeConfig.providers, provider, modelId);
-        setModeUI('online');
         await saveSettings({ mode: 'online', provider, model: modelId });
-        setTimeout(() => { customModal.style.display = 'none'; }, 1200);
+        updateMainActiveModelPill();
       } else {
-        showCustomModalFeedback(false, data.error || 'Model add karne mein error aya.');
+        showFeedback(customModelFeedback, false, data.error || 'Model add karne mein error aya.');
       }
     } catch (e) {
-      showCustomModalFeedback(false, 'Network Error: ' + e.message);
+      showFeedback(customModelFeedback, false, 'Network Error: ' + e.message);
     } finally {
       btnSaveCustomModel.disabled = false;
     }
   }
 
-  // Add Custom Provider
+  async function handleDeleteCustomModel(provider, modelId) {
+    if (!confirm(`Model '${modelId}' delete karein?`)) return;
+    try {
+      await fetch('/api/custom-model', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider, modelId })
+      });
+      await fetchConfig();
+    } catch (e) {
+      alert('Delete error: ' + e.message);
+    }
+  }
+
+  // Add Custom Online Provider (Page 2)
   async function handleSaveCustomProvider() {
     const id = newProviderId.value.trim();
     const name = newProviderName.value.trim() || id;
@@ -571,7 +685,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const apiKey = newProviderApiKey.value.trim();
 
     if (!id || !endpoint) {
-      showCustomModalFeedback(false, 'Provider ID aur Endpoint URL enter karna lazmi hai.');
+      showFeedback(customProviderFeedback, false, 'Provider ID aur Endpoint URL enter karna lazmi hai.');
       return;
     }
 
@@ -593,7 +707,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const data = await res.json();
 
       if (data.success) {
-        showCustomModalFeedback(true, `✅ Online Provider '${name}' kamyabi se save ho gaya!`);
+        showFeedback(customProviderFeedback, true, `✅ Online Provider '${name}' kamyabi se save ho gaya!`);
         newProviderId.value = '';
         newProviderName.value = '';
         newProviderEndpoint.value = '';
@@ -601,29 +715,43 @@ document.addEventListener('DOMContentLoaded', () => {
         newProviderDefaultModelName.value = '';
         newProviderApiKey.value = '';
         await fetchConfig();
-        // Automatically select the new provider
+        // Select new provider
         providerSelect.value = id;
         populateModels(activeConfig.providers, id, defaultModelId);
-        setModeUI('online');
         await saveSettings({ mode: 'online', provider: id, model: defaultModelId });
-        setTimeout(() => { customModal.style.display = 'none'; }, 1200);
+        updateMainActiveModelPill();
       } else {
-        showCustomModalFeedback(false, data.error || 'Provider add karne mein error aya.');
+        showFeedback(customProviderFeedback, false, data.error || 'Provider add karne mein error aya.');
       }
     } catch (e) {
-      showCustomModalFeedback(false, 'Network Error: ' + e.message);
+      showFeedback(customProviderFeedback, false, 'Network Error: ' + e.message);
     } finally {
       btnSaveCustomProvider.disabled = false;
     }
   }
 
-  function showCustomModalFeedback(isSuccess, message) {
-    customModalFeedback.style.display = 'flex';
-    customModalFeedback.className = isSuccess ? 'test-feedback-banner success' : 'test-feedback-banner error';
-    customModalFeedback.innerHTML = `<span>${message}</span>`;
+  async function handleDeleteCustomProvider(provider) {
+    if (!confirm(`Provider '${provider}' delete karein?`)) return;
+    try {
+      await fetch('/api/custom-provider', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider })
+      });
+      await fetchConfig();
+    } catch (e) {
+      alert('Delete error: ' + e.message);
+    }
   }
 
-  // --- CHAT STREAMING ---
+  function showFeedback(el, isSuccess, message) {
+    if (!el) return;
+    el.style.display = 'flex';
+    el.className = isSuccess ? 'test-feedback-banner success' : 'test-feedback-banner error';
+    el.innerHTML = `<span>${message}</span>`;
+  }
+
+  // --- CHAT STREAMING (Page 1) ---
   async function handleSendMessage() {
     const message = promptInput.value.trim();
     if (!message || isSending) return;
