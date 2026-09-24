@@ -1311,7 +1311,9 @@ document.addEventListener('DOMContentLoaded', () => {
   function reloadStylesheets() {
     const links = document.querySelectorAll('link[rel="stylesheet"]');
     links.forEach(link => {
-      const rawHref = link.getAttribute('data-origin-href') || link.getAttribute('href').split('?')[0];
+      const href = link.getAttribute('href');
+      if (!href || href.includes('fonts.googleapis.com')) return;
+      const rawHref = link.getAttribute('data-origin-href') || href.split('?')[0];
       if (!link.getAttribute('data-origin-href')) {
         link.setAttribute('data-origin-href', rawHref);
       }
