@@ -22,10 +22,13 @@
       </div>
 
       <div class="header-actions">
-        <div class="hybrid-badge" id="hybridBadge" title="Local Offline Engine + Cloud AI">
-          <span class="pulse-dot"></span>
-          <span id="hybridModeText">Hybrid: Active</span>
+        <div class="mode-toggle-group" id="modeToggleGroup">
+          <button type="button" class="mode-toggle-btn active" id="btnModeOnline" data-mode="online">🌐 Online</button>
+          <button type="button" class="mode-toggle-btn" id="btnModeOffline" data-mode="offline">⚡ Offline</button>
         </div>
+        <button class="btn btn-outline" id="btnOpenAddCustomModal" title="Add Custom Online Provider or Model">
+          ➕ Add Model
+        </button>
         <button class="btn btn-outline" id="btnOpenKeysModal">
           🔑 API Keys <span class="badge" id="totalKeysBadge">0</span>
         </button>
@@ -61,6 +64,7 @@
       <div class="control-item">
         <label for="providerSelect">AI Provider</label>
         <select id="providerSelect" class="form-select">
+          <option value="offline">⚡ Offline / Local Engine</option>
           <option value="groq">Groq (Ultra-Fast LPU)</option>
           <option value="gemini">Google Gemini</option>
           <option value="openai">OpenAI Compatible</option>
@@ -186,6 +190,85 @@
       <div class="modal-footer">
         <button class="btn btn-secondary" id="btnCancelAllowance">Cancel</button>
         <button class="btn btn-primary" id="btnSaveAllowance">Save Budget</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Provider / Model Modal -->
+  <div class="modal-backdrop" id="customModal" style="display: none;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>➕ Add Online Provider or Model</h3>
+        <button class="btn-close" id="btnCloseCustomModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-tabs">
+          <button type="button" class="tab-btn active" id="tabBtnAddModel">✨ Add Model</button>
+          <button type="button" class="tab-btn" id="tabBtnAddProvider">🌐 Add Online Provider</button>
+        </div>
+
+        <!-- Section 1: Add Model to Provider -->
+        <div class="tab-pane active" id="paneAddModel">
+          <p class="modal-desc">
+            Kisi bhi provider (Groq, Gemini, OpenAI, ya custom) mein <strong>naya model</strong> add karein. Yeh backend config mein save ho jayega.
+          </p>
+          <div class="form-group">
+            <label for="customModelProvider">Select Target Provider:</label>
+            <select id="customModelProvider" class="form-select">
+              <!-- Populated dynamically -->
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="customModelId">Model ID / Name (Exact API identifier):</label>
+            <input type="text" id="customModelId" class="form-control" placeholder="e.g. llama-3.3-70b-specdec ya gemini-1.5-flash-8b">
+          </div>
+          <div class="form-group">
+            <label for="customModelName">Display Label (Optional):</label>
+            <input type="text" id="customModelName" class="form-control" placeholder="e.g. Llama 3.3 Speculative (Fast)">
+          </div>
+          <button class="btn btn-primary" id="btnSaveCustomModel" style="width: 100%; margin-top: 6px;">➕ Save Model</button>
+        </div>
+
+        <!-- Section 2: Add New Online Provider -->
+        <div class="tab-pane" id="paneAddProvider" style="display: none;">
+          <p class="modal-desc">
+            Koi bhi <strong>OpenAI-compatible online provider</strong> (jaise OpenRouter, Together AI, Mistral, DeepSeek, Local Ollama, vLLM) add karein.
+          </p>
+          <div class="form-row">
+            <div class="form-group flex-grow">
+              <label for="newProviderId">Provider ID (slug):</label>
+              <input type="text" id="newProviderId" class="form-control" placeholder="e.g. openrouter">
+            </div>
+            <div class="form-group flex-grow">
+              <label for="newProviderName">Provider Display Name:</label>
+              <input type="text" id="newProviderName" class="form-control" placeholder="e.g. OpenRouter (Unified API)">
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="newProviderEndpoint">API Endpoint / Base URL:</label>
+            <input type="text" id="newProviderEndpoint" class="form-control" placeholder="e.g. https://openrouter.ai/api/v1/chat/completions">
+          </div>
+          <div class="form-row">
+            <div class="form-group flex-grow">
+              <label for="newProviderDefaultModelId">Default Model ID:</label>
+              <input type="text" id="newProviderDefaultModelId" class="form-control" placeholder="e.g. deepseek/deepseek-chat">
+            </div>
+            <div class="form-group flex-grow">
+              <label for="newProviderDefaultModelName">Model Label:</label>
+              <input type="text" id="newProviderDefaultModelName" class="form-control" placeholder="e.g. DeepSeek Chat">
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="newProviderApiKey">API Key (Optional abhi daalein):</label>
+            <input type="password" id="newProviderApiKey" class="form-control" placeholder="e.g. sk-or-v1-...">
+          </div>
+          <button class="btn btn-primary" id="btnSaveCustomProvider" style="width: 100%; margin-top: 6px;">🚀 Save Online Provider</button>
+        </div>
+
+        <div id="customModalFeedback" class="test-feedback-banner" style="display: none; margin-top: 10px;"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="btnCloseCustomModalBtn">Close</button>
       </div>
     </div>
   </div>

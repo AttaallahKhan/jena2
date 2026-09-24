@@ -42,7 +42,14 @@ const JENA_SYSTEM_PROMPT = `You are Jena, an autonomous, highly capable, and int
 - Online: You use high-speed cloud intelligence for advanced coding, debugging, reasoning, and analysis.`;
 
 // --- PROVIDERS & MODELS REGISTRY (CODE LEVEL) ---
-const PROVIDERS = {
+const DEFAULT_PROVIDERS = {
+  offline: {
+    name: '⚡ Offline / Local Engine',
+    type: 'local',
+    models: [
+      { id: 'jena-local-core', name: 'Jena Local Core (Hardware, Stats, Terminal, Math)', default: true }
+    ]
+  },
   groq: {
     name: 'Groq (Ultra-Fast LPU)',
     endpoint: 'https://api.groq.com/openai/v1/chat/completions',
@@ -77,6 +84,9 @@ const PROVIDERS = {
   }
 };
 
+// Backwards compatibility alias
+const PROVIDERS = DEFAULT_PROVIDERS;
+
 // --- CONFIG & MULTI-KEY MANAGER ---
 class ConfigManager {
   static ensureDir() {
@@ -89,6 +99,7 @@ class ConfigManager {
     this.ensureDir();
     const defaults = {
       version: '0.3.0',
+      mode: 'online', // 'online' | 'offline'
       activeProvider: 'groq',
       activeModel: 'qwen/qwen3.8-27b',
       temperature: 0.3,
@@ -105,7 +116,9 @@ class ConfigManager {
         gemini: [],
         openai: []
       },
-      modelKeys: {} // optional keys bound to specific "provider:model"
+      modelKeys: {}, // optional keys bound to specific "provider:model"
+      customProviders: {},
+      customModels: {}
     };
 
     if (fs.existsSync(CONFIG_FILE)) {
@@ -122,7 +135,14 @@ class ConfigManager {
         if (parsed.provider) defaults.activeProvider = parsed.provider;
         if (parsed.model) defaults.activeModel = parsed.model;
 
-        return { ...defaults, ...parsed, tokens: { ...defaults.tokens, ...(parsed.tokens || {}) }, keys: { ...defaults.keys, ...(parsed.keys || {}) } };
+        return {
+          ...defaults,
+          ...parsed,
+          tokens: { ...defaults.tokens, ...(parsed.tokens || {}) },
+          keys: { ...defaults.keys, ...(parsed.keys || {}) },
+          customProviders: { ...(parsed.customProviders || {}) },
+          customModels: { ...(parsed.customModels || {}) }
+        };
       } catch (_) {}
     }
     this.save(defaults);
@@ -133,6 +153,108 @@ class ConfigManager {
     this.ensureDir();
     fs.writeFileSync(CONFIG_FILE, JSON.stringify(data, null, 2), 'utf8');
     return data;
+  }
+
+  static getAllProviders() {
+    const cfg = this.load();
+    const combined = JSON.parse(JSON.stringify(DEFAULT_PROVIDERS));
+
+    // Merge custom providers
+    if (cfg.customProviders && typeof cfg.customProviders === 'object') {
+      Object.entries(cfg.customProviders).forEach(([pid, pData]) => {
+        combined[pid] = { ...pData };
+      });
+    }
+
+    // Merge custom models
+    if (cfg.customModels && typeof cfg.customModels === 'object') {
+      Object.entries(cfg.customModels).forEach(([pid, modelsArr]) => {
+        if (combined[pid]) {
+          if (!combined[pid].models) combined[pid].models = [];
+          modelsArr.forEach(m => {
+            if (!combined[pid].models.some(existing => existing.id === m.id)) {
+              combined[pid].models.push(m);
+            }
+          });
+        }
+      });
+    }
+
+    return combined;
+  }
+
+  static addCustomProvider({ id, name, endpoint, type = 'openai-compatible', defaultModelId, defaultModelName }) {
+    const cfg = this.load();
+    if (!cfg.customProviders) cfg.customProviders = {};
+    const cleanId = (id || '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '-');
+    if (!cleanId) throw new Error('Provider ID lazmi hai.');
+    const cleanName = (name || cleanId).trim();
+    const cleanEndpoint = (endpoint || '').trim();
+    if (!cleanEndpoint) throw new Error('API Endpoint URL lazmi hai.');
+
+    const modelId = (defaultModelId || 'default').trim();
+    const modelName = (defaultModelName || modelId).trim();
+
+    cfg.customProviders[cleanId] = {
+      name: cleanName,
+      endpoint: cleanEndpoint,
+      type: type || 'openai-compatible',
+      custom: true,
+      models: [
+        { id: modelId, name: modelName, default: true, custom: true }
+      ]
+    };
+
+    if (!cfg.keys) cfg.keys = {};
+    if (!cfg.keys[cleanId]) cfg.keys[cleanId] = [];
+
+    this.save(cfg);
+    return { id: cleanId, provider: cfg.customProviders[cleanId] };
+  }
+
+  static addCustomModel(providerId, modelId, modelName) {
+    const cfg = this.load();
+    if (!cfg.customModels) cfg.customModels = {};
+    const cleanPid = (providerId || '').trim();
+    const cleanMid = (modelId || '').trim();
+    const cleanMname = (modelName || cleanMid).trim();
+
+    if (!cleanPid || !cleanMid) throw new Error('Provider aur Model ID lazmi hain.');
+
+    if (!cfg.customModels[cleanPid]) cfg.customModels[cleanPid] = [];
+    if (!cfg.customModels[cleanPid].some(m => m.id === cleanMid)) {
+      cfg.customModels[cleanPid].push({ id: cleanMid, name: cleanMname, custom: true });
+    }
+
+    this.save(cfg);
+    return { provider: cleanPid, model: { id: cleanMid, name: cleanMname } };
+  }
+
+  static deleteCustomModel(providerId, modelId) {
+    const cfg = this.load();
+    if (cfg.customModels && cfg.customModels[providerId]) {
+      cfg.customModels[providerId] = cfg.customModels[providerId].filter(m => m.id !== modelId);
+    }
+    if (cfg.customProviders && cfg.customProviders[providerId] && cfg.customProviders[providerId].models) {
+      cfg.customProviders[providerId].models = cfg.customProviders[providerId].models.filter(m => m.id !== modelId);
+    }
+    this.save(cfg);
+    return true;
+  }
+
+  static deleteCustomProvider(providerId) {
+    const cfg = this.load();
+    if (cfg.customProviders && cfg.customProviders[providerId]) {
+      delete cfg.customProviders[providerId];
+    }
+    if (cfg.customModels && cfg.customModels[providerId]) {
+      delete cfg.customModels[providerId];
+    }
+    if (cfg.keys && cfg.keys[providerId]) {
+      delete cfg.keys[providerId];
+    }
+    this.save(cfg);
+    return true;
   }
 
   static getKeys(provider, model = null) {
@@ -429,10 +551,13 @@ class LocalEngine {
 class CloudEngine {
   static async generate(prompt, options = {}) {
     const cfg = ConfigManager.load();
+    const allProviders = ConfigManager.getAllProviders();
     const provider = options.provider || cfg.activeProvider || 'groq';
     const model = options.model || cfg.activeModel || 'qwen/qwen3.8-27b';
     const temp = options.temperature ?? cfg.temperature ?? 0.3;
     const maxTokens = options.maxTokens ?? cfg.maxTokens ?? 700;
+
+    const providerConfig = allProviders[provider] || DEFAULT_PROVIDERS[provider] || DEFAULT_PROVIDERS.groq;
 
     const keys = ConfigManager.getKeys(provider, model);
     if (!keys || keys.length === 0) {
@@ -446,14 +571,14 @@ class CloudEngine {
     for (let i = 0; i < keys.length; i++) {
       const apiKey = keys[i];
       try {
-        if (provider === 'gemini') {
+        if (provider === 'gemini' || providerConfig.type === 'gemini') {
           const result = await this.callGemini(model, apiKey, prompt, temp, maxTokens);
           const elapsedMs = Date.now() - startTime;
           const tokenStats = TokenTracker.recordUsage(result.promptTokens, result.completionTokens, elapsedMs);
           return { text: result.text, stats: tokenStats, provider, model };
         } else {
-          // Groq or OpenAI
-          const endpoint = PROVIDERS[provider]?.endpoint || PROVIDERS.groq.endpoint;
+          // Groq, OpenAI, or custom OpenAI-compatible endpoint
+          const endpoint = providerConfig.endpoint || DEFAULT_PROVIDERS.groq.endpoint;
           const result = await this.callOpenAiCompatible(endpoint, model, apiKey, prompt, temp, maxTokens);
           const elapsedMs = Date.now() - startTime;
           const tokenStats = TokenTracker.recordUsage(result.promptTokens, result.completionTokens, elapsedMs);
@@ -534,6 +659,32 @@ class CloudEngine {
 class TestEngine {
   static async testConnection(provider, model) {
     const startTime = Date.now();
+
+    // Offline / Local Engine Test
+    if (provider === 'offline' || model === 'jena-local-core') {
+      try {
+        const uptime = os.uptime();
+        const elapsedMs = Date.now() - startTime;
+        return {
+          success: true,
+          provider: 'offline',
+          model: 'jena-local-core',
+          latencyMs: Math.max(1, elapsedMs),
+          tokensPerSecond: 9999,
+          message: '⚡ Jena Offline / Local Engine is Active & Ready!',
+          reply: 'Local Engine healthy (0 tokens, instant response).'
+        };
+      } catch (e) {
+        return {
+          success: false,
+          provider: 'offline',
+          model: 'jena-local-core',
+          latencyMs: Date.now() - startTime,
+          error: e.message
+        };
+      }
+    }
+
     const testPrompt = 'Hello Jena! Respond with "OK: Ready" only.';
     try {
       const res = await CloudEngine.generate(testPrompt, { provider, model, maxTokens: 25 });
@@ -664,6 +815,7 @@ function startServer() {
     // GET /api/config
     if (pathname === '/api/config' && method === 'GET') {
       const cfg = ConfigManager.load();
+      const allProviders = ConfigManager.getAllProviders();
       // Mask keys for security
       const maskedKeys = {};
       Object.keys(cfg.keys || {}).forEach(p => {
@@ -671,10 +823,13 @@ function startServer() {
       });
 
       return sendJson(200, {
+        mode: cfg.mode || 'online',
         activeProvider: cfg.activeProvider || 'groq',
         activeModel: cfg.activeModel || 'qwen/qwen3.8-27b',
         tokens: cfg.tokens || { allowance: 500000, used: 0, balance: 500000, lastPromptSpeed: 0 },
-        providers: PROVIDERS,
+        providers: allProviders,
+        customProviders: cfg.customProviders || {},
+        customModels: cfg.customModels || {},
         maskedKeys,
         keysCount: Object.fromEntries(Object.entries(cfg.keys || {}).map(([p, arr]) => [p, arr.length]))
       });
@@ -685,6 +840,7 @@ function startServer() {
       try {
         const body = await parseBody();
         const cfg = ConfigManager.load();
+        if (body.mode) cfg.mode = body.mode;
         if (body.provider) cfg.activeProvider = body.provider;
         if (body.model) cfg.activeModel = body.model;
         if (body.allowance) {
@@ -692,6 +848,61 @@ function startServer() {
         }
         ConfigManager.save(cfg);
         return sendJson(200, { success: true, message: 'Settings save ho gayi hain.' });
+      } catch (err) {
+        return sendJson(400, { error: err.message });
+      }
+    }
+
+    // POST /api/custom-model
+    if (pathname === '/api/custom-model' && method === 'POST') {
+      try {
+        const body = await parseBody();
+        const { provider, modelId, modelName } = body;
+        if (!provider || !modelId) return sendJson(400, { error: 'Provider aur modelId zaroori hain.' });
+        const resData = ConfigManager.addCustomModel(provider, modelId, modelName);
+        return sendJson(200, { success: true, message: `Model '${modelId}' add ho gaya.`, data: resData });
+      } catch (err) {
+        return sendJson(400, { error: err.message });
+      }
+    }
+
+    // DELETE /api/custom-model
+    if (pathname === '/api/custom-model' && method === 'DELETE') {
+      try {
+        const body = await parseBody();
+        const { provider, modelId } = body;
+        if (!provider || !modelId) return sendJson(400, { error: 'Provider aur modelId zaroori hain.' });
+        ConfigManager.deleteCustomModel(provider, modelId);
+        return sendJson(200, { success: true, message: `Model '${modelId}' delete ho gaya.` });
+      } catch (err) {
+        return sendJson(400, { error: err.message });
+      }
+    }
+
+    // POST /api/custom-provider
+    if (pathname === '/api/custom-provider' && method === 'POST') {
+      try {
+        const body = await parseBody();
+        const { id, name, endpoint, type, defaultModelId, defaultModelName, apiKey } = body;
+        if (!id || !endpoint) return sendJson(400, { error: 'Provider ID aur Endpoint URL zaroori hain.' });
+        const resData = ConfigManager.addCustomProvider({ id, name, endpoint, type, defaultModelId, defaultModelName });
+        if (apiKey && apiKey.trim()) {
+          ConfigManager.addKey(resData.id, apiKey.trim());
+        }
+        return sendJson(200, { success: true, message: `Provider '${resData.provider.name}' add ho gaya.`, data: resData });
+      } catch (err) {
+        return sendJson(400, { error: err.message });
+      }
+    }
+
+    // DELETE /api/custom-provider
+    if (pathname === '/api/custom-provider' && method === 'DELETE') {
+      try {
+        const body = await parseBody();
+        const { provider } = body;
+        if (!provider) return sendJson(400, { error: 'Provider ID zaroori hai.' });
+        ConfigManager.deleteCustomProvider(provider);
+        return sendJson(200, { success: true, message: `Provider '${provider}' delete ho gaya.` });
       } catch (err) {
         return sendJson(400, { error: err.message });
       }
@@ -754,16 +965,31 @@ function startServer() {
 
       const sendEvent = (obj) => res.write(`data: ${JSON.stringify(obj)}\n\n`);
 
-      // 1. Check Offline Local Engine First
+      // 1. Check Offline / Local Engine (Explicit offline mode/provider OR Local query intent)
+      const isExplicitOffline = body.provider === 'offline' || body.mode === 'offline';
       const localIntent = LocalEngine.isLocalIntent(userMessage);
-      if (localIntent) {
+
+      if (isExplicitOffline || localIntent) {
         sendEvent({ type: 'mode', mode: 'offline' });
         sendEvent({ type: 'thought', content: '⚡ Local Engine active (Zero Token Usage • Offline).' });
-        const localResponse = await LocalEngine.execute(localIntent, userMessage);
+        let localResponse;
+        if (localIntent) {
+          localResponse = await LocalEngine.execute(localIntent, userMessage);
+        } else {
+          localResponse = `⚡ **Jena Local Engine (Offline Mode)**\n\n` +
+            `Main offline mode mein hoon aur Termux environment par 0 tokens ke sath active hoon. Aap mujh se yeh offline tasks karwa sakte hain:\n` +
+            `- 🔋 **Battery Report:** \`battery status check karo\`\n` +
+            `- 🧠 **RAM Jaiza:** \`kitni ram free hai\`\n` +
+            `- 💾 **Disk Storage:** \`storage check karo\`\n` +
+            `- 🕒 **Waqt Aur Tarikh:** \`aaj kya date hai\`\n` +
+            `- 🧮 **Riyazi / Math Hisab:** \`hisab karo 250 * 12\`\n` +
+            `- 📂 **Files Check:** \`files dikhao\` ya \`ls\`\n\n` +
+            `*Online Cloud AI (coding, deep reasoning, LLM models) use karne ke liye upar switch se **🌐 Online Mode** select karein.*`;
+        }
         sendEvent({
           type: 'done',
           text: localResponse,
-          stats: { tokens: 0, tps: 9999, mode: 'offline', allowance: ConfigManager.load().tokens.allowance }
+          stats: { totalTokens: 0, speed: 9999, mode: 'offline', balance: ConfigManager.load().tokens.balance }
         });
         return res.end();
       }

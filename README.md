@@ -13,8 +13,10 @@ Jena v0.3 ko ground zero se aik ultra-minimalist, lightweight aur powerful archi
    - `public/app.js` : Reactive client logic, live token metrics, and multi-key CRUD.
    - `package.json` : Project metadata.
 
-2. **Dohra Dimaagh (Hybrid AI Architecture):**
+2. **Dohra Dimaagh & Mode Switch (Hybrid AI Architecture):**
+   - 🔘 **Local / Online Mode Switch:** Header mein direct `[🌐 Online]` aur `[⚡ Offline]` switch button mojood hai.
    - ⚡ **Offline Local Engine (Zero Tokens, Instant <0.1s):**
+     - Provider dropdown mein `⚡ Offline / Local Engine` aur model `Jena Local Core` direct selectable hain.
      - Battery status (percentage, charging, temperature, health via Termux Hardware API).
      - RAM & Memory jaiza (`/proc/meminfo`).
      - Disk & Storage analysis (`/data` partition).
@@ -28,6 +30,9 @@ Jena v0.3 ko ground zero se aik ultra-minimalist, lightweight aur powerful archi
      - **Groq LPU:** `qwen/qwen3.8-27b` (Default • Ultra Fast), `llama-3.3-70b-versatile`, `llama-3.1-8b-instant`, `mixtral-8x7b-32768`.
      - **Google Gemini:** `gemini-3.6-flash` (Recommended), `gemini-2.5-flash`, `gemini-1.5-flash`, `gemini-1.5-pro`.
      - **OpenAI Compatible:** `gpt-4o-mini`, `gpt-4o`, `gpt-3.5-turbo`.
+   - ➕ **Dynamic Custom Online Providers & Models:**
+     - GUI se direct naye online providers (jaise OpenRouter, Together AI, Mistral, DeepSeek, Local Ollama) aur models add karein.
+     - Tamam custom providers aur models backend `~/.jena/config.json` mein future use ke liye automatically persist hote hain.
 
 3. **Multi-API Key Management (Per Provider & Per Model):**
    - Har provider/model ke liye user input se aik ya **multiple keys** save ki ja sakti hain.

@@ -11,12 +11,19 @@ document.addEventListener('DOMContentLoaded', () => {
   const testBtnIcon = document.getElementById('testBtnIcon');
   const testFeedback = document.getElementById('testFeedback');
 
+  // Mode Switch
+  const btnModeOnline = document.getElementById('btnModeOnline');
+  const btnModeOffline = document.getElementById('btnModeOffline');
+  const inputModeTag = document.getElementById('inputModeTag');
+
+  // Token Dashboard
   const valAllowance = document.getElementById('valAllowance');
   const valUsed = document.getElementById('valUsed');
   const valBalance = document.getElementById('valBalance');
   const valSpeed = document.getElementById('valSpeed');
   const cardAllowance = document.getElementById('cardAllowance');
 
+  // Chat Viewport
   const chatViewport = document.getElementById('chatViewport');
   const chatStream = document.getElementById('chatStream');
   const welcomeHero = document.getElementById('welcomeHero');
@@ -24,7 +31,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const promptInput = document.getElementById('promptInput');
   const btnSend = document.getElementById('btnSend');
 
-  // Modals
+  // Multi-Key Modal Elements
   const keysModal = document.getElementById('keysModal');
   const btnOpenKeysModal = document.getElementById('btnOpenKeysModal');
   const btnCloseKeysModal = document.getElementById('btnCloseKeysModal');
@@ -35,13 +42,42 @@ document.addEventListener('DOMContentLoaded', () => {
   const newKeyValue = document.getElementById('newKeyValue');
   const btnAddKey = document.getElementById('btnAddKey');
 
+  // Allowance Modal Elements
   const allowanceModal = document.getElementById('allowanceModal');
   const inputAllowance = document.getElementById('inputAllowance');
   const btnCloseAllowanceModal = document.getElementById('btnCloseAllowanceModal');
   const btnCancelAllowance = document.getElementById('btnCancelAllowance');
   const btnSaveAllowance = document.getElementById('btnSaveAllowance');
 
+  // Custom Provider / Model Modal Elements
+  const customModal = document.getElementById('customModal');
+  const btnOpenAddCustomModal = document.getElementById('btnOpenAddCustomModal');
+  const btnCloseCustomModal = document.getElementById('btnCloseCustomModal');
+  const btnCloseCustomModalBtn = document.getElementById('btnCloseCustomModalBtn');
+  const tabBtnAddModel = document.getElementById('tabBtnAddModel');
+  const tabBtnAddProvider = document.getElementById('tabBtnAddProvider');
+  const paneAddModel = document.getElementById('paneAddModel');
+  const paneAddProvider = document.getElementById('paneAddProvider');
+
+  const customModelProvider = document.getElementById('customModelProvider');
+  const customModelId = document.getElementById('customModelId');
+  const customModelName = document.getElementById('customModelName');
+  const btnSaveCustomModel = document.getElementById('btnSaveCustomModel');
+
+  const newProviderId = document.getElementById('newProviderId');
+  const newProviderName = document.getElementById('newProviderName');
+  const newProviderEndpoint = document.getElementById('newProviderEndpoint');
+  const newProviderDefaultModelId = document.getElementById('newProviderDefaultModelId');
+  const newProviderDefaultModelName = document.getElementById('newProviderDefaultModelName');
+  const newProviderApiKey = document.getElementById('newProviderApiKey');
+  const btnSaveCustomProvider = document.getElementById('btnSaveCustomProvider');
+  const customModalFeedback = document.getElementById('customModalFeedback');
+
+  // State
   let activeConfig = null;
+  let currentMode = 'online'; // 'online' | 'offline'
+  let lastOnlineProvider = 'groq';
+  let lastOnlineModel = 'qwen/qwen3.8-27b';
   let isSending = false;
 
   // --- INIT ---
@@ -68,6 +104,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // Populate Model Dropdown
       populateModels(data.providers, data.activeProvider, data.activeModel);
+
+      // Populate Providers in Modals
+      populateModalProviders(data.providers);
+
+      // Update Mode state & UI
+      if (data.mode === 'offline' || data.activeProvider === 'offline') {
+        setModeUI('offline');
+      } else {
+        setModeUI('online');
+        lastOnlineProvider = data.activeProvider;
+        lastOnlineModel = data.activeModel;
+      }
 
       // Update Keys Count Badge
       updateKeysBadge(data.keysCount);
@@ -126,6 +174,36 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  function populateModalProviders(providersObj) {
+    if (!providersObj) return;
+
+    // 1. Populate Target Provider for Add Model Modal (exclude offline)
+    if (customModelProvider) {
+      customModelProvider.innerHTML = '';
+      Object.keys(providersObj).forEach(key => {
+        if (key === 'offline') return;
+        const opt = document.createElement('option');
+        opt.value = key;
+        opt.textContent = providersObj[key].name;
+        customModelProvider.appendChild(opt);
+      });
+    }
+
+    // 2. Populate newKeyProvider in Keys Modal (exclude offline)
+    if (newKeyProvider) {
+      const currentSelected = newKeyProvider.value;
+      newKeyProvider.innerHTML = '';
+      Object.keys(providersObj).forEach(key => {
+        if (key === 'offline') return;
+        const opt = document.createElement('option');
+        opt.value = key;
+        opt.textContent = providersObj[key].name;
+        if (key === currentSelected) opt.selected = true;
+        newKeyProvider.appendChild(opt);
+      });
+    }
+  }
+
   function updateKeysBadge(keysCountObj) {
     if (!keysCountObj) return;
     const total = Object.values(keysCountObj).reduce((a, b) => a + b, 0);
@@ -160,21 +238,73 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // --- MODE SWITCH LOGIC ---
+  function setModeUI(mode) {
+    currentMode = mode;
+    if (mode === 'offline') {
+      btnModeOffline.classList.add('active');
+      btnModeOnline.classList.remove('active');
+      if (inputModeTag) {
+        inputModeTag.textContent = '⚡ Offline Mode: 100% Termux Hardware & Math • 0 Tokens Consumed';
+      }
+    } else {
+      btnModeOnline.classList.add('active');
+      btnModeOffline.classList.remove('active');
+      if (inputModeTag) {
+        inputModeTag.textContent = '🌐 Online Mode: Routine tasks run locally • Complex queries use Cloud AI';
+      }
+    }
+  }
+
+  async function handleSwitchMode(mode) {
+    if (mode === 'offline') {
+      if (providerSelect.value !== 'offline') {
+        lastOnlineProvider = providerSelect.value;
+        lastOnlineModel = modelSelect.value;
+      }
+      setModeUI('offline');
+      providerSelect.value = 'offline';
+      populateModels(activeConfig.providers, 'offline', 'jena-local-core');
+      await saveSettings({ mode: 'offline', provider: 'offline', model: 'jena-local-core' });
+    } else {
+      setModeUI('online');
+      const targetProvider = (lastOnlineProvider && lastOnlineProvider !== 'offline') ? lastOnlineProvider : 'groq';
+      providerSelect.value = targetProvider;
+      populateModels(activeConfig.providers, targetProvider, lastOnlineModel);
+      await saveSettings({ mode: 'online', provider: targetProvider, model: modelSelect.value });
+    }
+  }
+
   // --- EVENT LISTENERS ---
   function setupEventListeners() {
-    // Provider Change
+    // Mode Switch Buttons
+    btnModeOnline.addEventListener('click', () => handleSwitchMode('online'));
+    btnModeOffline.addEventListener('click', () => handleSwitchMode('offline'));
+
+    // Provider Change Dropdown
     providerSelect.addEventListener('change', async () => {
       const newProvider = providerSelect.value;
+      if (newProvider === 'offline') {
+        setModeUI('offline');
+      } else {
+        setModeUI('online');
+        lastOnlineProvider = newProvider;
+      }
+
       if (activeConfig && activeConfig.providers) {
         populateModels(activeConfig.providers, newProvider);
         const newModel = modelSelect.value;
-        await saveSettings({ provider: newProvider, model: newModel });
+        lastOnlineModel = newModel;
+        await saveSettings({ mode: currentMode, provider: newProvider, model: newModel });
       }
     });
 
-    // Model Change
+    // Model Change Dropdown
     modelSelect.addEventListener('change', async () => {
       const newModel = modelSelect.value;
+      if (currentMode === 'online') {
+        lastOnlineModel = newModel;
+      }
       await saveSettings({ model: newModel });
     });
 
@@ -241,18 +371,60 @@ document.addEventListener('DOMContentLoaded', () => {
     btnCloseAllowanceModal.addEventListener('click', () => { allowanceModal.style.display = 'none'; });
     btnCancelAllowance.addEventListener('click', () => { allowanceModal.style.display = 'none'; });
     btnSaveAllowance.addEventListener('click', handleSaveAllowance);
+
+    // Custom Provider & Model Modal
+    if (btnOpenAddCustomModal) {
+      btnOpenAddCustomModal.addEventListener('click', () => {
+        customModalFeedback.style.display = 'none';
+        customModal.style.display = 'flex';
+      });
+    }
+    if (btnCloseCustomModal) {
+      btnCloseCustomModal.addEventListener('click', () => { customModal.style.display = 'none'; });
+    }
+    if (btnCloseCustomModalBtn) {
+      btnCloseCustomModalBtn.addEventListener('click', () => { customModal.style.display = 'none'; });
+    }
+
+    // Modal Tabs
+    if (tabBtnAddModel && tabBtnAddProvider) {
+      tabBtnAddModel.addEventListener('click', () => {
+        tabBtnAddModel.classList.add('active');
+        tabBtnAddProvider.classList.remove('active');
+        paneAddModel.style.display = 'flex';
+        paneAddProvider.style.display = 'none';
+        customModalFeedback.style.display = 'none';
+      });
+
+      tabBtnAddProvider.addEventListener('click', () => {
+        tabBtnAddProvider.classList.add('active');
+        tabBtnAddModel.classList.remove('active');
+        paneAddProvider.style.display = 'flex';
+        paneAddModel.style.display = 'none';
+        customModalFeedback.style.display = 'none';
+      });
+    }
+
+    // Save Custom Model
+    if (btnSaveCustomModel) {
+      btnSaveCustomModel.addEventListener('click', handleSaveCustomModel);
+    }
+
+    // Save Custom Provider
+    if (btnSaveCustomProvider) {
+      btnSaveCustomProvider.addEventListener('click', handleSaveCustomProvider);
+    }
   }
 
   // --- ACTIONS ---
 
   async function saveSettings(payload) {
     try {
-      const res = await fetch('/api/config', {
+      await fetch('/api/config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      await fetchConfig();
     } catch (e) {
       console.error('Settings save error:', e);
     }
@@ -344,7 +516,111 @@ document.addEventListener('DOMContentLoaded', () => {
     const val = parseInt(inputAllowance.value, 10);
     if (!val || val <= 0) return;
     await saveSettings({ allowance: val });
+    await fetchConfig();
     allowanceModal.style.display = 'none';
+  }
+
+  // Add Custom Model
+  async function handleSaveCustomModel() {
+    const provider = customModelProvider.value;
+    const modelId = customModelId.value.trim();
+    const modelName = customModelName.value.trim() || modelId;
+
+    if (!modelId) {
+      showCustomModalFeedback(false, 'Model ID enter karna lazmi hai.');
+      return;
+    }
+
+    try {
+      btnSaveCustomModel.disabled = true;
+      const res = await fetch('/api/custom-model', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider, modelId, modelName })
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        showCustomModalFeedback(true, `✅ Model '${modelName}' kamyabi se save ho gaya!`);
+        customModelId.value = '';
+        customModelName.value = '';
+        await fetchConfig();
+        // Automatically select newly added model
+        providerSelect.value = provider;
+        populateModels(activeConfig.providers, provider, modelId);
+        setModeUI('online');
+        await saveSettings({ mode: 'online', provider, model: modelId });
+        setTimeout(() => { customModal.style.display = 'none'; }, 1200);
+      } else {
+        showCustomModalFeedback(false, data.error || 'Model add karne mein error aya.');
+      }
+    } catch (e) {
+      showCustomModalFeedback(false, 'Network Error: ' + e.message);
+    } finally {
+      btnSaveCustomModel.disabled = false;
+    }
+  }
+
+  // Add Custom Provider
+  async function handleSaveCustomProvider() {
+    const id = newProviderId.value.trim();
+    const name = newProviderName.value.trim() || id;
+    const endpoint = newProviderEndpoint.value.trim();
+    const defaultModelId = newProviderDefaultModelId.value.trim() || 'default-model';
+    const defaultModelName = newProviderDefaultModelName.value.trim() || defaultModelId;
+    const apiKey = newProviderApiKey.value.trim();
+
+    if (!id || !endpoint) {
+      showCustomModalFeedback(false, 'Provider ID aur Endpoint URL enter karna lazmi hai.');
+      return;
+    }
+
+    try {
+      btnSaveCustomProvider.disabled = true;
+      const res = await fetch('/api/custom-provider', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id,
+          name,
+          endpoint,
+          type: 'openai-compatible',
+          defaultModelId,
+          defaultModelName,
+          apiKey
+        })
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        showCustomModalFeedback(true, `✅ Online Provider '${name}' kamyabi se save ho gaya!`);
+        newProviderId.value = '';
+        newProviderName.value = '';
+        newProviderEndpoint.value = '';
+        newProviderDefaultModelId.value = '';
+        newProviderDefaultModelName.value = '';
+        newProviderApiKey.value = '';
+        await fetchConfig();
+        // Automatically select the new provider
+        providerSelect.value = id;
+        populateModels(activeConfig.providers, id, defaultModelId);
+        setModeUI('online');
+        await saveSettings({ mode: 'online', provider: id, model: defaultModelId });
+        setTimeout(() => { customModal.style.display = 'none'; }, 1200);
+      } else {
+        showCustomModalFeedback(false, data.error || 'Provider add karne mein error aya.');
+      }
+    } catch (e) {
+      showCustomModalFeedback(false, 'Network Error: ' + e.message);
+    } finally {
+      btnSaveCustomProvider.disabled = false;
+    }
+  }
+
+  function showCustomModalFeedback(isSuccess, message) {
+    customModalFeedback.style.display = 'flex';
+    customModalFeedback.className = isSuccess ? 'test-feedback-banner success' : 'test-feedback-banner error';
+    customModalFeedback.innerHTML = `<span>${message}</span>`;
   }
 
   // --- CHAT STREAMING ---
@@ -373,6 +649,7 @@ document.addEventListener('DOMContentLoaded', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message,
+          mode: currentMode,
           provider: providerSelect.value,
           model: modelSelect.value
         })
