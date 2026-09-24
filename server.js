@@ -2532,6 +2532,7 @@ function startServer() {
     console.log(`  Local URL:   http://localhost:${PORT}`);
     console.log(`  Network URL: http://0.0.0.0:${PORT}`);
     console.log(`======================================================\n`);
+    exec(`termux-open-url http://localhost:${PORT} 2>/dev/null || xdg-open http://localhost:${PORT} 2>/dev/null || true`, () => {});
   });
 }
 
@@ -2582,7 +2583,7 @@ async function runCli(args) {
   }
 
   const query = args.filter(a => !a.startsWith('--')).join(' ').trim();
-  if (!query) {
+  if (!query || args.includes('--gui') || query === 'gui' || query === 'server' || query === 'start') {
     startServer();
     return;
   }
