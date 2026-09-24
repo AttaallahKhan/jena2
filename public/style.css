@@ -69,6 +69,7 @@ body {
   padding: 8px 12px 14px;
   border-bottom: 1px solid var(--border-color);
   flex-shrink: 0;
+  background: var(--bg-surface);
 }
 
 .brand {

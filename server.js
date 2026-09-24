@@ -558,7 +558,26 @@ class LocalEngine {
       return { type: 'learned_op', op: learnedOp };
     }
 
-    // 4. GUI Explanation & Self-Inspection
+    // 4. GUI & Components Code / Styling Inspection
+    if (
+      /(?:code|css|html|styling|styles?)\s+(?:dikhao|batao|kya hai)/i.test(q) ||
+      /(?:components?|elements?)\s*(?:ki\s+list|dikhao|batao|tamam|all)/i.test(q) ||
+      /(?:token\s*cards?|header|navbar|switch|hero|button|input|modal|cards?)\s*(?:ka|ki)?\s*(?:code|css|html|styling|styles?)/i.test(q)
+    ) {
+      return 'inspect_component';
+    }
+
+    // 5. GUI & Components Live Styling Mutation (Size, Padding, Borders, Background, Colors, Radius, Text)
+    if (
+      /(?:token\s*cards?|header|navbar|switch|hero|button|input|modal|cards?|cwd\s*bar)\s*(?:ka|ki|ke|ko)?\s*(?:size|padding|border|color|background|radius|font|height|width|margin|gap).*?(?:badlo|change|kardo|rakho|set|badha|chhota|barha|bara)/i.test(q) ||
+      /(?:badlo|change|set|update)\s+(?:token\s*cards?|header|hero|button|input|modal|cards?)\s*(?:ka|ki)?\s*(?:size|padding|border|color|background|radius)/i.test(q) ||
+      /(?:size\s+badha\s+do|size\s+barha\s+do|size\s+chhota\s+karo|padding\s+barha\s+do|padding\s+badha\s+do|padding\s+chhoti\s+karo)/i.test(q) ||
+      /(?:padding|border|border-radius|radius)\s+[0-9a-z%pxrem\s#]+\s*(?:kardo|rakho|set)/i.test(q)
+    ) {
+      return 'modify_component';
+    }
+
+    // 6. GUI Architecture & Sizing Explanation
     if (
       /(?:token\s*(?:dashboard|cards?)|cards?\s*ka\s*size|dashboard\s*cards?|token\s*card\s*size)/i.test(q) ||
       /(?:apne|apni|meri|current)?\s*(?:index\.html|style\.css|app\.js|server\.js|package\.json|gui|frontend|backend|components?|tokens?|cards?)\s*(?:ko)?\s*(?:explain|samjhao|batao|bataiye|kya hai|size)/i.test(q) ||
@@ -568,7 +587,7 @@ class LocalEngine {
       return 'explain_gui';
     }
 
-    // 5. GUI Self-Editing
+    // 7. General GUI & File Self-Editing
     if (
       /(?:css|style\.css|styles?|gui|index\.html|app\.js)\s+(?:main|mein)\s+/i.test(q) ||
       /^(?:edit|change|update|modify)\s+(?:gui|style\.css|index\.html|app\.js|css)\b/i.test(q) ||
@@ -661,6 +680,10 @@ class LocalEngine {
         return this.showMemory();
       case 'explain_gui':
         return this.explainGui(query);
+      case 'inspect_component':
+        return this.inspectComponent(query);
+      case 'modify_component':
+        return this.modifyComponent(query);
       case 'edit_gui':
         return this.editGui(query);
       case 'scaffold_web':
@@ -1042,6 +1065,383 @@ class LocalEngine {
     }
   }
 
+  // --- OFFLINE COMPONENT KNOWLEDGE & LIVE MUTATION ENGINE ---
+  static COMPONENT_REGISTRY = {
+    token_card: {
+      names: ['token card', 'token cards', 'token dashboard', 'dashboard card', 'dashboard cards', 'metric card', 'metrics cards'],
+      selector: '.token-card',
+      containerSelector: '.token-dashboard',
+      file: 'public/style.css',
+      htmlSearch: 'section class="token-dashboard"',
+      htmlEndSearch: '</section>',
+      desc: 'Token Dashboard Metrics Cards (Allowance, Used, Balance, Speed)'
+    },
+    header: {
+      names: ['header', 'app header', 'navbar', 'top bar', 'nav bar'],
+      selector: '.app-header',
+      file: 'public/style.css',
+      htmlSearch: '<header class="app-header">',
+      htmlEndSearch: '</header>',
+      desc: 'Top Application Header with Brand Logo, Navigation Tabs & Mode Switch'
+    },
+    mode_switch: {
+      names: ['mode switch', 'mode button', 'online offline switch', 'switch button', 'switch'],
+      selector: '.mode-switch',
+      file: 'public/style.css',
+      htmlSearch: '<div class="mode-switch">',
+      htmlEndSearch: '</div>',
+      desc: 'Hybrid Mode Toggle Switch (Online vs Offline)'
+    },
+    active_model_bar: {
+      names: ['active model bar', 'active model pill', 'engine bar', 'model bar'],
+      selector: '.active-model-bar',
+      file: 'public/style.css',
+      htmlSearch: '<div class="active-model-bar">',
+      htmlEndSearch: '</div>',
+      desc: 'Active Model Info Banner & Link to Settings'
+    },
+    cwd_bar: {
+      names: ['cwd bar', 'cwd status', 'cwd path', 'folder bar'],
+      selector: '.cwd-status-bar',
+      file: 'public/style.css',
+      htmlSearch: '<div class="cwd-status-bar">',
+      htmlEndSearch: '</div>',
+      desc: 'Current Working Directory Status Bar with Quick Actions'
+    },
+    welcome_hero: {
+      names: ['welcome hero', 'hero banner', 'welcome box', 'welcome section', 'hero'],
+      selector: '.welcome-hero',
+      file: 'public/style.css',
+      htmlSearch: '<div class="welcome-hero"',
+      htmlEndSearch: '</div>\n          </div>',
+      desc: 'Welcome Hero Box with Greeting & Quick Prompt Action Chips'
+    },
+    chat_viewport: {
+      names: ['chat viewport', 'chat stream', 'chat area', 'chat container', 'chat box'],
+      selector: '.chat-viewport',
+      file: 'public/style.css',
+      htmlSearch: '<main class="chat-viewport"',
+      htmlEndSearch: '</main>',
+      desc: 'Scrollable Conversation Message Viewport'
+    },
+    message_bubble: {
+      names: ['message bubble', 'message row', 'chat bubble', 'user bubble', 'assistant bubble'],
+      selector: '.message-bubble',
+      file: 'public/style.css',
+      htmlSearch: '<div class="message-bubble"',
+      htmlEndSearch: '</div>',
+      desc: 'User & Assistant Chat Message Bubbles'
+    },
+    input_box: {
+      names: ['input box', 'chat input', 'input wrapper', 'prompt input', 'footer', 'textarea'],
+      selector: '.input-wrapper',
+      file: 'public/style.css',
+      htmlSearch: '<div class="input-wrapper">',
+      htmlEndSearch: '</div>',
+      desc: 'Bottom Prompt Input Field & Auto-resizing Textarea'
+    },
+    send_button: {
+      names: ['send button', 'btn send', 'submit button', 'bhejo button'],
+      selector: '.btn-send',
+      file: 'public/style.css',
+      htmlSearch: '<button type="submit" id="btnSend"',
+      htmlEndSearch: '</button>',
+      desc: 'Send Prompt Button with Neon Hover'
+    },
+    settings_card: {
+      names: ['settings card', 'settings panel', 'config card', 'card'],
+      selector: '.settings-card',
+      file: 'public/style.css',
+      htmlSearch: '<div class="settings-card',
+      htmlEndSearch: '</div>\n        </div>',
+      desc: 'Settings Panels (Providers, Keys, Custom Models, Memory, Logs)'
+    },
+    terminal_box: {
+      names: ['terminal box', 'terminal preview', 'execution box'],
+      selector: '.terminal-preview-box',
+      file: 'public/style.css',
+      htmlSearch: '<div id="opExecutionBox"',
+      htmlEndSearch: '</div>',
+      desc: 'Terminal Preview Box for Running Learned Operations'
+    },
+    modal: {
+      names: ['modal', 'allowance modal', 'dialog', 'popup'],
+      selector: '.modal-card',
+      file: 'public/style.css',
+      htmlSearch: '<div class="modal-card',
+      htmlEndSearch: '</div>\n    </div>',
+      desc: 'Token Allowance Budget Edit Popup Modal'
+    }
+  };
+
+  static findComponent(query) {
+    const q = (query || '').toLowerCase();
+    for (const key of Object.keys(this.COMPONENT_REGISTRY)) {
+      const comp = this.COMPONENT_REGISTRY[key];
+      for (const name of comp.names) {
+        if (q.includes(name)) return { key, ...comp };
+      }
+    }
+    if (q.includes('token') || q.includes('cards')) return { key: 'token_card', ...this.COMPONENT_REGISTRY.token_card };
+    if (q.includes('header') || q.includes('nav')) return { key: 'header', ...this.COMPONENT_REGISTRY.header };
+    if (q.includes('input') || q.includes('textarea')) return { key: 'input_wrapper', ...this.COMPONENT_REGISTRY.input_wrapper };
+    if (q.includes('button') || q.includes('send')) return { key: 'send_button', ...this.COMPONENT_REGISTRY.send_button };
+    if (q.includes('hero') || q.includes('welcome')) return { key: 'welcome_hero', ...this.COMPONENT_REGISTRY.welcome_hero };
+    if (q.includes('switch')) return { key: 'mode_switch', ...this.COMPONENT_REGISTRY.mode_switch };
+    if (q.includes('modal')) return { key: 'modal', ...this.COMPONENT_REGISTRY.modal };
+    return null;
+  }
+
+  static extractCssRule(cssContent, selector) {
+    const escapedSel = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const blockRegex = new RegExp(`(${escapedSel}[^{]*\\{[^}]*\\})`, 'gm');
+    const matches = cssContent.match(blockRegex);
+    return matches ? matches.join('\n\n') : null;
+  }
+
+  static updateCssRule(cssContent, selector, property, newValue) {
+    const escapedSel = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const blockRegex = new RegExp(`(${escapedSel}\\s*\\{[^}]*\\})`, 'm');
+    const match = cssContent.match(blockRegex);
+    if (!match) return { success: false, error: `Selector "${selector}" CSS mein nahi mila.` };
+
+    const oldBlock = match[1];
+    let newBlock = oldBlock;
+    const propRegex = new RegExp(`(\\b${property}\\s*:\\s*)([^;]+)(;)`, 'i');
+
+    if (propRegex.test(oldBlock)) {
+      const oldVal = oldBlock.match(propRegex)[2].trim();
+      newBlock = oldBlock.replace(propRegex, `$1${newValue}$3`);
+      const updatedCss = cssContent.replace(oldBlock, newBlock);
+      return { success: true, updatedCss, selector, property, oldValue: oldVal, newValue, isNew: false };
+    } else {
+      const insertIdx = oldBlock.lastIndexOf('}');
+      newBlock = oldBlock.slice(0, insertIdx).trimEnd() + `\n  ${property}: ${newValue};\n}`;
+      const updatedCss = cssContent.replace(oldBlock, newBlock);
+      return { success: true, updatedCss, selector, property, oldValue: null, newValue, isNew: true };
+    }
+  }
+
+  static listComponents() {
+    let out = `🧩 **Jena GUI Components Architecture & Knowledge Base (Offline • 0 Tokens):**\n\n` +
+      `Main apne har frontend component ke HTML structure aur CSS styling se mukammal waqif hoon. Aap kisi bhi component ka code inspect kar sakte hain ya uski styling (size, padding, borders, background, radius, fonts) direct tabdeel karwa sakte hain:\n\n`;
+
+    Object.keys(this.COMPONENT_REGISTRY).forEach((k, idx) => {
+      const c = this.COMPONENT_REGISTRY[k];
+      out += `${idx + 1}. 🔹 **${c.desc}**\n` +
+             `   - **CSS Selector:** \`${c.selector}\`\n` +
+             `   - **Aliases:** ${c.names.slice(0, 3).map(n => `\`${n}\``).join(', ')}\n\n`;
+    });
+
+    out += `💡 **Commands Examples:**\n` +
+      `- 🔍 **Code Dekhna:** \`token cards ka code dikhao\` ya \`send button ka css batao\`\n` +
+      `- 📏 **Size / Padding:** \`token cards ki padding 16px 20px kardo\` ya \`token cards ka size badhao\`\n` +
+      `- 🔲 **Borders:** \`token cards ka border 2px solid cyan kardo\` ya \`border radius 16px kardo\`\n` +
+      `- 🎨 **Colors & Background:** \`header ka background #070a14 kardo\` ya \`send button ka color #10b981 kardo\`\n` +
+      `- 📝 **HTML Content:** \`html main replace "old text" with "new text"\``;
+    return out;
+  }
+
+  static inspectComponent(query) {
+    const q = (query || '').toLowerCase();
+    if (q.includes('list') || q.includes('tamam') || q.includes('all')) {
+      return this.listComponents();
+    }
+
+    const comp = this.findComponent(q);
+    if (!comp) {
+      return this.listComponents();
+    }
+
+    const cssPath = path.join(PUBLIC_DIR, 'style.css');
+    const htmlPath = path.join(PUBLIC_DIR, 'index.html');
+    let cssCode = 'CSS rule nahi mili.';
+    let htmlCode = 'HTML snippet nahi mila.';
+
+    if (fs.existsSync(cssPath)) {
+      const cssContent = fs.readFileSync(cssPath, 'utf8');
+      const rule = this.extractCssRule(cssContent, comp.selector);
+      if (rule) cssCode = rule;
+    }
+
+    if (fs.existsSync(htmlPath)) {
+      const htmlContent = fs.readFileSync(htmlPath, 'utf8');
+      const startIdx = htmlContent.indexOf(comp.htmlSearch);
+      if (startIdx !== -1) {
+        let endIdx = htmlContent.indexOf(comp.htmlEndSearch, startIdx);
+        if (endIdx !== -1) {
+          endIdx += comp.htmlEndSearch.length;
+          htmlCode = htmlContent.slice(startIdx, endIdx).trim();
+          if (htmlCode.length > 1200) {
+            htmlCode = htmlCode.slice(0, 1200) + '\n<!-- ... (truncated for brevity) -->';
+          }
+        }
+      }
+    }
+
+    return (
+      `🔍 **Component Inspection: \`${comp.desc}\`**\n\n` +
+      `📌 **CSS Selector:** \`${comp.selector}\` (File: \`public/style.css\`)\n` +
+      `\`\`\`css\n${cssCode}\n\`\`\`\n\n` +
+      `📄 **HTML Structure Snippet:** (File: \`public/index.html\`)\n` +
+      `\`\`\`html\n${htmlCode}\n\`\`\`\n\n` +
+      `🛠️ **Is component ko tabdeel karne ke liye misalein:**\n` +
+      `- \`${comp.names[0]} ki padding 16px 20px kardo\`\n` +
+      `- \`${comp.names[0]} ka border 2px solid cyan kardo\`\n` +
+      `- \`${comp.names[0]} ka background #0f172a kardo\`\n` +
+      `- \`${comp.names[0]} ki border radius 16px kardo\``
+    );
+  }
+
+  static modifyComponent(query) {
+    const q = (query || '').trim();
+    const qLower = q.toLowerCase();
+
+    // Check if asking for components list
+    if (qLower.includes('list') || qLower.includes('tamam components')) {
+      return this.listComponents();
+    }
+
+    // Check for HTML content replacement
+    if (/html|text|content|title|heading/i.test(qLower) && (q.includes('replace') || q.includes('badal kar') || q.includes('tabdeel'))) {
+      const htmlPath = path.join(PUBLIC_DIR, 'index.html');
+      let htmlContent = fs.readFileSync(htmlPath, 'utf8');
+      const replaceMatch = q.match(/replace\s+["']([^"']+)["']\s+with\s+["']([^"']+)["']/i) ||
+                           q.match(/["']([^"']+)["']\s+(?:ko|se)\s+["']([^"']+)["']/i);
+      if (replaceMatch) {
+        const oldStr = replaceMatch[1];
+        const newStr = replaceMatch[2];
+        if (!htmlContent.includes(oldStr)) {
+          return `⚠️ Target text HTML mein nahi mila:\n\`${oldStr}\``;
+        }
+        htmlContent = htmlContent.replace(oldStr, newStr);
+        fs.writeFileSync(htmlPath, htmlContent, 'utf8');
+        return `✅ **HTML Content Updated Successfully!**\n- 🔄 **Replaced:** \`${oldStr}\`\n- 🎯 **With:** \`${newStr}\`\n\n*(Browser refresh karein changes live dekhne ke liye.)*`;
+      }
+    }
+
+    const comp = this.findComponent(qLower);
+    if (!comp) {
+      return this.editGui(query);
+    }
+
+    const cssPath = path.join(PUBLIC_DIR, 'style.css');
+    if (!fs.existsSync(cssPath)) return `❌ Error: \`${cssPath}\` mojood nahi hai.`;
+    let cssContent = fs.readFileSync(cssPath, 'utf8');
+
+    // 1. Check for padding change
+    const padMatch = q.match(/padding\s+([0-9a-z\s%pxrem!]+?)(?:\s+kardo|\s+rakho|\s+set|$)/i) ||
+                     q.match(/(?:size\s+barha|size\s+badha|bara\s+karo)/i);
+    if (padMatch) {
+      let padVal = padMatch[1]?.trim();
+      if (!padVal || padMatch[0].includes('badha') || padMatch[0].includes('barha') || padMatch[0].includes('bara')) {
+        padVal = '16px 20px';
+      }
+      const res = this.updateCssRule(cssContent, comp.selector, 'padding', padVal);
+      if (res.success) {
+        fs.writeFileSync(cssPath, res.updatedCss, 'utf8');
+        return `✅ **${comp.desc} Ki Padding Updated!**\n` +
+               `- 🎯 **Selector:** \`${comp.selector}\`\n` +
+               `- 📏 **New Padding:** \`${padVal}\`${res.oldValue ? ` (Previous: \`${res.oldValue}\`)` : ''}\n\n` +
+               `*(Browser refresh karein live changes dekhne ke liye.)*`;
+      }
+    }
+
+    // 2. Check for size chhota karo
+    if (/size\s+chhota|chota\s+karo/i.test(qLower)) {
+      const res = this.updateCssRule(cssContent, comp.selector, 'padding', '8px 10px');
+      if (res.success) {
+        fs.writeFileSync(cssPath, res.updatedCss, 'utf8');
+        return `✅ **${comp.desc} Ka Size Chhota Kar Diya Gaya!**\n` +
+               `- 🎯 **Selector:** \`${comp.selector}\`\n` +
+               `- 📏 **New Padding:** \`8px 10px\`${res.oldValue ? ` (Previous: \`${res.oldValue}\`)` : ''}\n\n` +
+               `*(Browser refresh karein live changes dekhne ke liye.)*`;
+      }
+    }
+
+    // 3. Check for border-radius / corners
+    const radiusMatch = q.match(/(?:border-?radius|radius|corners?)\s+([^\n;]+?)(?:\s+kardo|\s+rakho|\s+set|$)/i);
+    if (radiusMatch) {
+      const radiusVal = radiusMatch[1].trim();
+      const res = this.updateCssRule(cssContent, comp.selector, 'border-radius', radiusVal);
+      if (res.success) {
+        fs.writeFileSync(cssPath, res.updatedCss, 'utf8');
+        return `✅ **${comp.desc} Ki Border Radius Updated!**\n` +
+               `- 🎯 **Selector:** \`${comp.selector}\`\n` +
+               `- 📐 **New Border Radius:** \`${radiusVal}\`${res.oldValue ? ` (Previous: \`${res.oldValue}\`)` : ''}\n\n` +
+               `*(Browser refresh karein live changes dekhne ke liye.)*`;
+      }
+    }
+
+    // 4. Check for border (with style, width, or color)
+    const borderMatch = q.match(/border\s+([^\n;]+?)(?:\s+kardo|\s+rakho|\s+set|$)/i);
+    if (borderMatch && !/radius|corner/i.test(borderMatch[0])) {
+      let borderVal = borderMatch[1].trim();
+      borderVal = borderVal.replace(/\bcyan\b/i, '#00d2ff').replace(/\bgreen\b/i, '#10b981').replace(/\bpurple\b/i, '#9d4edd').replace(/\bred\b/i, '#ef4444');
+      const res = this.updateCssRule(cssContent, comp.selector, 'border', borderVal);
+      if (res.success) {
+        fs.writeFileSync(cssPath, res.updatedCss, 'utf8');
+        return `✅ **${comp.desc} Ki Border Updated!**\n` +
+               `- 🎯 **Selector:** \`${comp.selector}\`\n` +
+               `- 🔲 **New Border:** \`${borderVal}\`${res.oldValue ? ` (Previous: \`${res.oldValue}\`)` : ''}\n\n` +
+               `*(Browser refresh karein live changes dekhne ke liye.)*`;
+      }
+    }
+
+    // 6. Check for background color / gradient
+    const bgMatch = q.match(/(?:background(?:-color)?|bg)\s+([^\n;]+?)(?:\s+kardo|\s+rakho|\s+set|$)/i);
+    if (bgMatch) {
+      let bgVal = bgMatch[1].trim();
+      const colorMap = { cyan: '#00d2ff', green: '#10b981', purple: '#9d4edd', red: '#ef4444', dark: '#0a0d14', black: '#000000', white: '#ffffff' };
+      if (colorMap[bgVal.toLowerCase()]) bgVal = colorMap[bgVal.toLowerCase()];
+      const res = this.updateCssRule(cssContent, comp.selector, 'background', bgVal);
+      if (res.success) {
+        fs.writeFileSync(cssPath, res.updatedCss, 'utf8');
+        return `✅ **${comp.desc} Ka Background Updated!**\n` +
+               `- 🎯 **Selector:** \`${comp.selector}\`\n` +
+               `- 🎨 **New Background:** \`${bgVal}\`${res.oldValue ? ` (Previous: \`${res.oldValue}\`)` : ''}\n\n` +
+               `*(Browser refresh karein live changes dekhne ke liye.)*`;
+      }
+    }
+
+    // 7. Check for text color
+    const colorMatch = q.match(/(?:text\s*color|color)\s+([^\n;]+?)(?:\s+kardo|\s+rakho|\s+set|$)/i);
+    if (colorMatch) {
+      let cVal = colorMatch[1].trim();
+      const colorMap = { cyan: '#00d2ff', green: '#10b981', purple: '#9d4edd', red: '#ef4444', white: '#ffffff', black: '#000000' };
+      if (colorMap[cVal.toLowerCase()]) cVal = colorMap[cVal.toLowerCase()];
+      const res = this.updateCssRule(cssContent, comp.selector, 'color', cVal);
+      if (res.success) {
+        fs.writeFileSync(cssPath, res.updatedCss, 'utf8');
+        return `✅ **${comp.desc} Ka Text Color Updated!**\n` +
+               `- 🎯 **Selector:** \`${comp.selector}\`\n` +
+               `- 🎨 **New Color:** \`${cVal}\`${res.oldValue ? ` (Previous: \`${res.oldValue}\`)` : ''}\n\n` +
+               `*(Browser refresh karein live changes dekhne ke liye.)*`;
+      }
+    }
+
+    // 8. Check for font-size
+    const fontMatch = q.match(/(?:font-?size|font)\s+([0-9]+(?:px|rem|em))/i);
+    if (fontMatch) {
+      const fVal = fontMatch[1].trim();
+      const res = this.updateCssRule(cssContent, comp.selector, 'font-size', fVal);
+      if (res.success) {
+        fs.writeFileSync(cssPath, res.updatedCss, 'utf8');
+        return `✅ **${comp.desc} Ka Font Size Updated!**\n` +
+               `- 🎯 **Selector:** \`${comp.selector}\`\n` +
+               `- 🔤 **New Font Size:** \`${fVal}\`${res.oldValue ? ` (Previous: \`${res.oldValue}\`)` : ''}\n\n` +
+               `*(Browser refresh karein live changes dekhne ke liye.)*`;
+      }
+    }
+
+    return `💡 **${comp.desc} Modification Options:**\n` +
+      `- Padding/Size: \`${comp.names[0]} ki padding 16px 20px kardo\` ya \`size badhao\`\n` +
+      `- Border: \`${comp.names[0]} ka border 2px solid cyan kardo\` ya \`border radius 16px kardo\`\n` +
+      `- Background: \`${comp.names[0]} ka background #0f172a kardo\`\n` +
+      `- Color: \`${comp.names[0]} ka color white kardo\`\n` +
+      `- Font Size: \`${comp.names[0]} ka font-size 16px kardo\``;
+  }
+
   // --- OFFLINE WEB DEVELOPMENT & GUI EXPLANATION / EDITING ENGINE ---
   static explainGui(query) {
     const q = (query || '').toLowerCase();
@@ -1206,6 +1606,12 @@ class LocalEngine {
 
   static editGui(query) {
     const q = query.trim();
+
+    // If query targets a specific component, route to modifyComponent
+    const comp = this.findComponent(q);
+    if (comp && !/^(?:replace|badlo)/i.test(q)) {
+      return this.modifyComponent(query);
+    }
 
     // Check if targeting CSS
     if (/css|style/i.test(q)) {
