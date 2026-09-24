@@ -69,7 +69,18 @@ Jena v0.3 ko ground zero se aik ultra-minimalist, lightweight aur powerful archi
      - Active provider aur model ka connection verify karta hai.
      - Real-time latency (ms) aur generation speed (t/s) measure karke report deta hai.
 
-6. **Persona & Language Rules:**
+6. **📜 Conversation Tracking & Command Failure Logging System:**
+   - **Conversation Tracking (`~/.jena/conversation.jsonl`):**
+     - Har user interaction aur Jena ka reply timestamp, provider, model, tokens, mode aur status ke sath append-only format mein record hota hai.
+   - **Command Failure Logging (`~/.jena/failures.log`):**
+     - Kisi bhi command failure (offline command syntax/execution error, non-existent folder, API rate-limit/network error) ki soorat mein poori timestamped error detail `failures.log` mein save ho jati hai.
+   - **Terminal Commands:**
+     - `jena --logs` : Recent conversation history dekhein.
+     - `jena --failures` : Command failure logs aur errors ka jaiza lein.
+   - **Web GUI (Page 2 Card 6):**
+     - GUI se direct conversation logs aur failure logs dekhein, refresh karein, ya clear karein.
+
+7. **Persona & Language Rules:**
    - Female persona ("main karungi", "samajh gayi", "main check karti hoon").
    - Default language: Roman Urdu (Pakistani Urdu written in standard Latin script).
    - English: Technical code aur programming terms ke liye.
@@ -95,6 +106,15 @@ jena "battery check karo"
 jena "kitni ram free hai"
 jena "aaj kya date hai"
 jena "hisab karo 1500 * 25"
+
+# Filesystem navigation:
+jena "ls"
+jena "pwd"
+jena "tree"
+
+# Conversation & Failure Logs:
+jena --logs
+jena --failures
 
 # Online AI coding & reasoning:
 jena "Python script likho jo local IP address print kare"

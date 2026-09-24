@@ -105,6 +105,18 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnCloseOpExecution = document.getElementById('btnCloseOpExecution');
   const opExecutionContent = document.getElementById('opExecutionContent');
 
+  // Logs Viewer Elements (Card 6)
+  const btnRefreshLogs = document.getElementById('btnRefreshLogs');
+  const btnClearLogs = document.getElementById('btnClearLogs');
+  const txtConvLogPath = document.getElementById('txtConvLogPath');
+  const txtFailLogPath = document.getElementById('txtFailLogPath');
+  const tabLogConv = document.getElementById('tabLogConv');
+  const tabLogFail = document.getElementById('tabLogFail');
+  const convLogsCount = document.getElementById('convLogsCount');
+  const convLogsView = document.getElementById('convLogsView');
+  const failLogsView = document.getElementById('failLogsView');
+  const failLogsContent = document.getElementById('failLogsContent');
+
   // State
   let activeConfig = null;
   let currentMode = 'online'; // 'online' | 'offline'
@@ -120,6 +132,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setupEventListeners();
     await fetchConfig();
     await fetchMemory();
+    await fetchLogs();
   }
 
   // --- 2-PAGE NAVIGATION SYSTEM ---
@@ -611,6 +624,27 @@ document.addEventListener('DOMContentLoaded', () => {
           return;
         }
       });
+    // Card 6: Log Tabs & Actions
+    if (tabLogConv && tabLogFail) {
+      tabLogConv.addEventListener('click', () => {
+        tabLogConv.classList.add('active');
+        tabLogFail.classList.remove('active');
+        convLogsView.style.display = 'flex';
+        failLogsView.style.display = 'none';
+      });
+      tabLogFail.addEventListener('click', () => {
+        tabLogFail.classList.add('active');
+        tabLogConv.classList.remove('active');
+        failLogsView.style.display = 'flex';
+        convLogsView.style.display = 'none';
+      });
+    }
+
+    if (btnRefreshLogs) {
+      btnRefreshLogs.addEventListener('click', fetchLogs);
+    }
+    if (btnClearLogs) {
+      btnClearLogs.addEventListener('click', handleClearLogs);
     }
 
     // Allowance Modal
@@ -864,6 +898,77 @@ document.addEventListener('DOMContentLoaded', () => {
       await fetchMemory();
     } catch (e) {
       alert('Delete error: ' + e.message);
+    }
+  }
+
+  // --- LOG VIEWER LOGIC ---
+  async function fetchLogs() {
+    try {
+      const res = await fetch('/api/logs');
+      if (!res.ok) return;
+      const data = await res.json();
+      renderLogs(data);
+    } catch (e) {
+      console.error('Fetch logs error:', e);
+    }
+  }
+
+  function renderLogs(data) {
+    if (!data) return;
+
+    if (txtConvLogPath && data.conversationLogPath) {
+      txtConvLogPath.textContent = data.conversationLogPath;
+    }
+    if (txtFailLogPath && data.failureLogPath) {
+      txtFailLogPath.textContent = data.failureLogPath;
+    }
+
+    // Conversations
+    const convs = data.conversations || [];
+    if (convLogsCount) convLogsCount.textContent = convs.length;
+
+    if (convLogsView) {
+      convLogsView.innerHTML = '';
+      if (convs.length === 0) {
+        convLogsView.innerHTML = `<div style="text-align:center; padding: 16px; color: var(--text-muted); font-size: 12px;">Abhi koi conversation log mojood nahi hai. Chat mein baat karein.</div>`;
+      } else {
+        convs.forEach(c => {
+          const item = document.createElement('div');
+          item.className = 'log-entry-item';
+          const time = new Date(c.timestamp).toLocaleString();
+          const isSuccess = c.status === 'SUCCESS';
+          const badgeClass = isSuccess ? 'log-badge-success' : 'log-badge-failed';
+          const modeTag = c.mode === 'offline' ? '⚡ OFFLINE' : `🌐 ${c.provider || 'ONLINE'}`;
+          item.innerHTML = `
+            <div class="log-entry-header">
+              <span class="${badgeClass}">${c.status}</span>
+              <span class="log-entry-meta">${modeTag} &bull; ${escapeHtml(time)}</span>
+            </div>
+            <div class="log-entry-user">👤 User: ${escapeHtml(c.user)}</div>
+            <div class="log-entry-bot">🤖 Jena: ${escapeHtml(c.assistant || c.error || '')}</div>
+          `;
+          convLogsView.appendChild(item);
+        });
+      }
+    }
+
+    // Failures
+    if (failLogsContent) {
+      failLogsContent.textContent = data.failures || 'Koi failure log mojood nahi hai (All clean).';
+    }
+  }
+
+  async function handleClearLogs() {
+    if (!confirm('Kya aap waqai tamam conversation aur failure logs delete karna chahte hain?')) return;
+    try {
+      await fetch('/api/logs/clear', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'all' })
+      });
+      await fetchLogs();
+    } catch (e) {
+      alert('Clear error: ' + e.message);
     }
   }
 
@@ -1142,6 +1247,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       await fetchConfig();
       await fetchMemory();
+      await fetchLogs();
     } catch (err) {
       bubble.textContent = `❌ Error: ${err.message}`;
     } finally {

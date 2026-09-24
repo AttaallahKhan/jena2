@@ -415,6 +415,42 @@
               </div>
             </div>
           </div>
+
+          <!-- Card 6: Conversation Tracking & Command Failure Logs -->
+          <div class="settings-card card-full-width">
+            <div class="settings-card-header">
+              <h3>📜 Conversation Tracking & Command Failure Logs</h3>
+              <div style="display: flex; gap: 8px;">
+                <button type="button" class="btn-xs-cwd" id="btnRefreshLogs" title="Refresh Logs">🔄 Refresh</button>
+                <button type="button" class="btn-del-item" id="btnClearLogs" title="Clear All Logs">🗑️ Clear Logs</button>
+              </div>
+            </div>
+            <div class="settings-card-body">
+              <p class="section-desc">
+                Jena har user conversation aur command failure ko automatically track aur persist karti hai:
+                <br>
+                - 💬 <strong>Conversations:</strong> <code id="txtConvLogPath">~/.jena/conversation.jsonl</code>
+                &bull;
+                - ❌ <strong>Failures / Errors:</strong> <code id="txtFailLogPath">~/.jena/failures.log</code>
+              </p>
+
+              <!-- Log Tabs -->
+              <div class="log-tabs-bar">
+                <button type="button" class="log-tab-btn active" id="tabLogConv">💬 Conversations (<span id="convLogsCount">0</span>)</button>
+                <button type="button" class="log-tab-btn" id="tabLogFail">❌ Command Failures</button>
+              </div>
+
+              <!-- Conversation Logs View -->
+              <div id="convLogsView" class="logs-scroll-container">
+                <!-- Dynamically populated -->
+              </div>
+
+              <!-- Failure Logs View -->
+              <div id="failLogsView" class="logs-scroll-container" style="display: none;">
+                <pre class="terminal-preview-content" id="failLogsContent">Loading failures...</pre>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </section>

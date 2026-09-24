@@ -22,6 +22,8 @@ const HOME_DIR = process.env.HOME || '/data/data/com.termux/files/home';
 const JENA_DIR = path.join(HOME_DIR, '.jena');
 const CONFIG_FILE = path.join(JENA_DIR, 'config.json');
 const MEMORY_FILE = path.join(JENA_DIR, 'memory.json');
+const CONVERSATION_LOG_FILE = path.join(JENA_DIR, 'conversation.jsonl');
+const FAILURE_LOG_FILE = path.join(JENA_DIR, 'failures.log');
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const PORT = parseInt(process.env.PORT || '8080', 10);
 const BIN_TARGET = '/data/data/com.termux/files/usr/bin/jena';
@@ -659,6 +661,16 @@ class LocalEngine {
         if (errOut) body += (body ? '\n' : '') + errOut;
         if (err && !body) body = `Error: ${err.message}`;
 
+        if (err) {
+          LogManager.logFailure({
+            command: op.command,
+            type: 'LEARNED_OP_EXECUTION_FAILURE',
+            error: `${err.message}${errOut ? ` | stderr: ${errOut}` : ''}`,
+            cwd,
+            context: { opId: op.id, opName: op.name, trigger: op.trigger }
+          });
+        }
+
         resolve(
           `⚡ **Jena Self-Learned Local Operation: \`${op.name}\`**\n` +
           `- 📍 **CWD:** \`${cwd}\`\n` +
@@ -1081,6 +1093,105 @@ class LocalEngine {
     } catch (_) {
       return null;
     }
+  }
+}
+
+// --- CONVERSATION & FAILURE LOG MANAGER ---
+class LogManager {
+  static ensureDir() {
+    if (!fs.existsSync(JENA_DIR)) {
+      fs.mkdirSync(JENA_DIR, { recursive: true });
+    }
+  }
+
+  static logInteraction({ userMessage, assistantReply, mode = 'online', provider = '', model = '', stats = null, success = true, error = null }) {
+    this.ensureDir();
+    const entry = {
+      timestamp: new Date().toISOString(),
+      user: userMessage,
+      assistant: assistantReply,
+      mode,
+      provider: provider || (mode === 'offline' ? 'offline' : 'unknown'),
+      model: model || (mode === 'offline' ? 'jena-local-core' : 'unknown'),
+      stats: stats || {},
+      status: success ? 'SUCCESS' : 'FAILED',
+      error: error || null,
+      cwd: LocalEngine.getCwd()
+    };
+
+    try {
+      fs.appendFileSync(CONVERSATION_LOG_FILE, JSON.stringify(entry) + '\n', 'utf8');
+    } catch (e) {
+      console.error('Failed to write conversation log:', e.message);
+    }
+
+    if (!success || error) {
+      this.logFailure({
+        command: userMessage,
+        type: mode === 'offline' ? 'LOCAL_COMMAND_FAILURE' : 'CLOUD_AI_FAILURE',
+        error: error || assistantReply,
+        cwd: LocalEngine.getCwd(),
+        context: { provider, model, mode }
+      });
+    }
+
+    return entry;
+  }
+
+  static logFailure({ command, type = 'COMMAND_FAILURE', error, cwd = '', context = null }) {
+    this.ensureDir();
+    const ts = new Date().toISOString();
+    const cleanError = typeof error === 'object' ? (error?.stack || error?.message || JSON.stringify(error)) : String(error);
+    const ctxStr = context ? `\nContext: ${JSON.stringify(context)}` : '';
+    const logBlock = `[${ts}] ❌ FAILURE [${type}]\n` +
+      `Command / Query: ${command || '(none)'}\n` +
+      `CWD: ${cwd || LocalEngine.getCwd()}\n` +
+      `Error Details: ${cleanError}${ctxStr}\n` +
+      `----------------------------------------------------------------------\n`;
+
+    try {
+      fs.appendFileSync(FAILURE_LOG_FILE, logBlock, 'utf8');
+    } catch (e) {
+      console.error('Failed to write failure log:', e.message);
+    }
+  }
+
+  static getRecentConversations(limit = 60) {
+    if (!fs.existsSync(CONVERSATION_LOG_FILE)) return [];
+    try {
+      const content = fs.readFileSync(CONVERSATION_LOG_FILE, 'utf8').trim();
+      if (!content) return [];
+      const lines = content.split('\n');
+      const slice = lines.slice(-limit);
+      return slice.map(l => {
+        try { return JSON.parse(l); } catch (_) { return null; }
+      }).filter(Boolean).reverse();
+    } catch (e) {
+      return [];
+    }
+  }
+
+  static getFailureLogs(limit = 40) {
+    if (!fs.existsSync(FAILURE_LOG_FILE)) return 'Koi failure log mojood nahi hai (All clean).';
+    try {
+      const content = fs.readFileSync(FAILURE_LOG_FILE, 'utf8').trim();
+      if (!content) return 'Koi failure log mojood nahi hai (All clean).';
+      const blocks = content.split('----------------------------------------------------------------------\n');
+      const recent = blocks.filter(b => b.trim()).slice(-limit).reverse();
+      return recent.join('\n----------------------------------------------------------------------\n') + '\n----------------------------------------------------------------------\n';
+    } catch (e) {
+      return `Failure log read error: ${e.message}`;
+    }
+  }
+
+  static clear(type = 'all') {
+    if (type === 'all' || type === 'conversation') {
+      try { if (fs.existsSync(CONVERSATION_LOG_FILE)) fs.writeFileSync(CONVERSATION_LOG_FILE, '', 'utf8'); } catch (_) {}
+    }
+    if (type === 'all' || type === 'failures') {
+      try { if (fs.existsSync(FAILURE_LOG_FILE)) fs.writeFileSync(FAILURE_LOG_FILE, '', 'utf8'); } catch (_) {}
+    }
+    return true;
   }
 }
 
@@ -1604,6 +1715,29 @@ function startServer() {
       }
     }
 
+    // GET /api/logs
+    if (pathname === '/api/logs' && method === 'GET') {
+      const conversations = LogManager.getRecentConversations(60);
+      const failures = LogManager.getFailureLogs(40);
+      return sendJson(200, {
+        conversations,
+        failures,
+        conversationLogPath: CONVERSATION_LOG_FILE,
+        failureLogPath: FAILURE_LOG_FILE
+      });
+    }
+
+    // POST /api/logs/clear
+    if (pathname === '/api/logs/clear' && method === 'POST') {
+      try {
+        const body = await parseBody();
+        LogManager.clear(body.type || 'all');
+        return sendJson(200, { success: true, message: 'Logs clear ho gaye hain.' });
+      } catch (err) {
+        return sendJson(400, { error: err.message });
+      }
+    }
+
     // POST /api/chat (Hybrid Chat with SSE Streaming)
     if (pathname === '/api/chat' && method === 'POST') {
       let body;
@@ -1628,8 +1762,15 @@ function startServer() {
         sendEvent({ type: 'mode', mode: 'offline' });
         sendEvent({ type: 'thought', content: '⚡ Local Engine active (Zero Token Usage • Offline).' });
         let localResponse;
+        let isErr = false;
         if (localIntent) {
-          localResponse = await LocalEngine.execute(localIntent, userMessage);
+          try {
+            localResponse = await LocalEngine.execute(localIntent, userMessage);
+            isErr = typeof localResponse === 'string' && (localResponse.startsWith('❌') || localResponse.startsWith('⚠️ Error'));
+          } catch (e) {
+            localResponse = `❌ Error: ${e.message}`;
+            isErr = true;
+          }
         } else {
           localResponse = `⚡ **Jena Local Engine (Offline Mode)**\n\n` +
             `Main offline mode mein hoon aur Termux environment par 0 tokens ke sath active hoon. Aap mujh se yeh offline tasks karwa sakte hain:\n` +
@@ -1641,6 +1782,18 @@ function startServer() {
             `- 📂 **Files Check:** \`files dikhao\` ya \`ls\`\n\n` +
             `*Online Cloud AI (coding, deep reasoning, LLM models) use karne ke liye upar switch se **🌐 Online Mode** select karein.*`;
         }
+
+        LogManager.logInteraction({
+          userMessage,
+          assistantReply: localResponse,
+          mode: 'offline',
+          provider: 'offline',
+          model: 'jena-local-core',
+          stats: { totalTokens: 0, speed: 9999 },
+          success: !isErr,
+          error: isErr ? localResponse : null
+        });
+
         sendEvent({
           type: 'done',
           text: localResponse,
@@ -1659,6 +1812,16 @@ function startServer() {
           model: body.model
         });
 
+        LogManager.logInteraction({
+          userMessage,
+          assistantReply: result.text,
+          mode: 'online',
+          provider: result.provider,
+          model: result.model,
+          stats: result.stats,
+          success: true
+        });
+
         sendEvent({
           type: 'done',
           text: result.text,
@@ -1667,6 +1830,16 @@ function startServer() {
           model: result.model
         });
       } catch (err) {
+        LogManager.logInteraction({
+          userMessage,
+          assistantReply: `❌ Error: ${err.message}`,
+          mode: 'online',
+          provider: body.provider || 'unknown',
+          model: body.model || 'unknown',
+          success: false,
+          error: err.message
+        });
+
         sendEvent({
           type: 'error',
           error: err.message
@@ -1741,6 +1914,29 @@ async function runCli(args) {
     return;
   }
 
+  if (args.includes('--logs')) {
+    const logs = LogManager.getRecentConversations(20);
+    console.log(`\n📜 Recent Jena Conversations (${logs.length}):\n`);
+    if (logs.length === 0) {
+      console.log('Koi conversation record nahi hai.\n');
+    } else {
+      logs.forEach((item) => {
+        const time = new Date(item.timestamp).toLocaleTimeString();
+        const tag = item.status === 'SUCCESS' ? '✅' : '❌';
+        console.log(`[${time}] ${tag} [${item.mode.toUpperCase()}] User: ${item.user}`);
+        console.log(`      Jena: ${item.assistant.slice(0, 100).replace(/\n/g, ' ')}${item.assistant.length > 100 ? '...' : ''}\n`);
+      });
+    }
+    return;
+  }
+
+  if (args.includes('--failures')) {
+    const failures = LogManager.getFailureLogs(20);
+    console.log(`\n❌ Jena Recent Command Failures:\n`);
+    console.log(failures + '\n');
+    return;
+  }
+
   const query = args.filter(a => !a.startsWith('--')).join(' ').trim();
   if (!query) {
     startServer();
@@ -1751,8 +1947,31 @@ async function runCli(args) {
   const localIntent = LocalEngine.isLocalIntent(query);
   if (localIntent) {
     console.log('\n⚡ [Jena Local Engine]: Offline Execution (0 Tokens)\n');
-    const ans = await LocalEngine.execute(localIntent, query);
-    console.log(ans + '\n');
+    try {
+      const ans = await LocalEngine.execute(localIntent, query);
+      const isErr = typeof ans === 'string' && (ans.startsWith('❌') || ans.startsWith('⚠️ Error'));
+      LogManager.logInteraction({
+        userMessage: query,
+        assistantReply: ans,
+        mode: 'offline',
+        provider: 'offline',
+        model: 'jena-local-core',
+        success: !isErr,
+        error: isErr ? ans : null
+      });
+      console.log(ans + '\n');
+    } catch (e) {
+      LogManager.logInteraction({
+        userMessage: query,
+        assistantReply: `❌ Error: ${e.message}`,
+        mode: 'offline',
+        provider: 'offline',
+        model: 'jena-local-core',
+        success: false,
+        error: e.message
+      });
+      console.log(`❌ Error: ${e.message}\n`);
+    }
     return;
   }
 
@@ -1760,9 +1979,25 @@ async function runCli(args) {
   console.log('\n[Jena] Soch rahi hoon...');
   try {
     const res = await CloudEngine.generate(query);
+    LogManager.logInteraction({
+      userMessage: query,
+      assistantReply: res.text,
+      mode: 'online',
+      provider: res.provider,
+      model: res.model,
+      stats: res.stats,
+      success: true
+    });
     console.log(`\n[Jena]:\n${res.text}\n`);
     console.log(`⚡ Tokens: ${res.stats.totalTokens} | Speed: ${res.stats.speed} t/s | Balance: ${res.stats.balance}\n`);
   } catch (err) {
+    LogManager.logInteraction({
+      userMessage: query,
+      assistantReply: `❌ Error: ${err.message}`,
+      mode: 'online',
+      success: false,
+      error: err.message
+    });
     console.log(`\n❌ Error: ${err.message}\n`);
   }
 }
@@ -1777,4 +2012,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { LocalEngine, CloudEngine, ConfigManager, TokenTracker, TestEngine };
+module.exports = { LocalEngine, CloudEngine, ConfigManager, TokenTracker, TestEngine, LogManager };
