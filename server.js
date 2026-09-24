@@ -558,6 +558,16 @@ class LocalEngine {
       return { type: 'learned_op', op: learnedOp };
     }
 
+    // Page Reload / Refresh trigger
+    if (
+      /^(?:page\s+|browser\s+|screen\s+)?(?:reload\s+refresh|refresh\s+reload|reload|refresh)(?:\s+karo|\s+karein|\s+kardo|\s+kardain)?$/i.test(q) ||
+      /^(?:reload|refresh|reload\s+refresh|refresh\s+reload)$/i.test(q) ||
+      /(?:page|browser|screen)\s+(?:ko\s+)?(?:refresh|reload|reload\s+refresh)\s*(?:karo|karein|kardo)?/i.test(q) ||
+      /\b(?:page\s+reload|page\s+refresh)\b/i.test(q)
+    ) {
+      return 'reload_page';
+    }
+
     // 4. GUI & Components Code / Styling Inspection
     if (
       /(?:code|css|html|styling|styles?)\s+(?:dikhao|batao|kya hai)/i.test(q) ||
@@ -676,6 +686,8 @@ class LocalEngine {
     switch (intent) {
       case 'teach':
         return this.learnFromInput(query);
+      case 'reload_page':
+        return '🔄 **Page Refresh:** Browser page refresh initiate ho raha hai...';
       case 'show_memory':
         return this.showMemory();
       case 'explain_gui':
@@ -1316,7 +1328,7 @@ class LocalEngine {
         }
         htmlContent = htmlContent.replace(oldStr, newStr);
         fs.writeFileSync(htmlPath, htmlContent, 'utf8');
-        return `✅ **HTML Content Updated Successfully!**\n- 🔄 **Replaced:** \`${oldStr}\`\n- 🎯 **With:** \`${newStr}\`\n\n*(Browser refresh karein changes live dekhne ke liye.)*`;
+        return `✅ **HTML Content Updated Successfully!**\n- 🔄 **Replaced:** \`${oldStr}\`\n- 🎯 **With:** \`${newStr}\`\n\n🔄 **Dynamic Page Reload:** Browser reload ho raha hai!`;
       }
     }
 
@@ -1343,7 +1355,7 @@ class LocalEngine {
         return `✅ **${comp.desc} Ki Padding Updated!**\n` +
                `- 🎯 **Selector:** \`${comp.selector}\`\n` +
                `- 📏 **New Padding:** \`${padVal}\`${res.oldValue ? ` (Previous: \`${res.oldValue}\`)` : ''}\n\n` +
-               `*(Browser refresh karein live changes dekhne ke liye.)*`;
+               `⚡ **Dynamic Hot-Reload Applied:** Browser styling live update ho chuki hai!`;
       }
     }
 
@@ -1355,7 +1367,7 @@ class LocalEngine {
         return `✅ **${comp.desc} Ka Size Chhota Kar Diya Gaya!**\n` +
                `- 🎯 **Selector:** \`${comp.selector}\`\n` +
                `- 📏 **New Padding:** \`8px 10px\`${res.oldValue ? ` (Previous: \`${res.oldValue}\`)` : ''}\n\n` +
-               `*(Browser refresh karein live changes dekhne ke liye.)*`;
+               `⚡ **Dynamic Hot-Reload Applied:** Browser styling live update ho chuki hai!`;
       }
     }
 
@@ -1369,7 +1381,7 @@ class LocalEngine {
         return `✅ **${comp.desc} Ki Border Radius Updated!**\n` +
                `- 🎯 **Selector:** \`${comp.selector}\`\n` +
                `- 📐 **New Border Radius:** \`${radiusVal}\`${res.oldValue ? ` (Previous: \`${res.oldValue}\`)` : ''}\n\n` +
-               `*(Browser refresh karein live changes dekhne ke liye.)*`;
+               `⚡ **Dynamic Hot-Reload Applied:** Browser styling live update ho chuki hai!`;
       }
     }
 
@@ -1384,7 +1396,7 @@ class LocalEngine {
         return `✅ **${comp.desc} Ki Border Updated!**\n` +
                `- 🎯 **Selector:** \`${comp.selector}\`\n` +
                `- 🔲 **New Border:** \`${borderVal}\`${res.oldValue ? ` (Previous: \`${res.oldValue}\`)` : ''}\n\n` +
-               `*(Browser refresh karein live changes dekhne ke liye.)*`;
+               `⚡ **Dynamic Hot-Reload Applied:** Browser styling live update ho chuki hai!`;
       }
     }
 
@@ -1400,7 +1412,7 @@ class LocalEngine {
         return `✅ **${comp.desc} Ka Background Updated!**\n` +
                `- 🎯 **Selector:** \`${comp.selector}\`\n` +
                `- 🎨 **New Background:** \`${bgVal}\`${res.oldValue ? ` (Previous: \`${res.oldValue}\`)` : ''}\n\n` +
-               `*(Browser refresh karein live changes dekhne ke liye.)*`;
+               `⚡ **Dynamic Hot-Reload Applied:** Browser styling live update ho chuki hai!`;
       }
     }
 
@@ -1416,7 +1428,7 @@ class LocalEngine {
         return `✅ **${comp.desc} Ka Text Color Updated!**\n` +
                `- 🎯 **Selector:** \`${comp.selector}\`\n` +
                `- 🎨 **New Color:** \`${cVal}\`${res.oldValue ? ` (Previous: \`${res.oldValue}\`)` : ''}\n\n` +
-               `*(Browser refresh karein live changes dekhne ke liye.)*`;
+               `⚡ **Dynamic Hot-Reload Applied:** Browser styling live update ho chuki hai!`;
       }
     }
 
@@ -1430,7 +1442,7 @@ class LocalEngine {
         return `✅ **${comp.desc} Ka Font Size Updated!**\n` +
                `- 🎯 **Selector:** \`${comp.selector}\`\n` +
                `- 🔤 **New Font Size:** \`${fVal}\`${res.oldValue ? ` (Previous: \`${res.oldValue}\`)` : ''}\n\n` +
-               `*(Browser refresh karein live changes dekhne ke liye.)*`;
+               `⚡ **Dynamic Hot-Reload Applied:** Browser styling live update ho chuki hai!`;
       }
     }
 
@@ -1631,7 +1643,7 @@ class LocalEngine {
         }
         content = content.replace(oldStr, newStr);
         fs.writeFileSync(cssPath, content, 'utf8');
-        return `✅ **CSS Updated Successfully!**\nReplaced in \`public/style.css\`:\n\`${oldStr}\`\n➔ With:\n\`${newStr}\`\n\n*(Browser refresh karein changes dekhne ke liye.)*`;
+        return `✅ **CSS Updated Successfully!**\nReplaced in \`public/style.css\`:\n\`${oldStr}\`\n➔ With:\n\`${newStr}\`\n\n⚡ **Dynamic Hot-Reload Applied:** Browser styling live update ho chuki hai!`;
       }
 
       // 2. Color / Variable update pattern: e.g. "background color #050811 kardo" or "--bg-primary to #050811"
@@ -1652,7 +1664,7 @@ class LocalEngine {
           const newLine = `${targetVar}: ${val};`;
           content = content.replace(regex, `$1${val}$3`);
           fs.writeFileSync(cssPath, content, 'utf8');
-          return `✅ **Jena GUI CSS Variable Updated!**\n- 🎯 **Updated:** \`${newLine}\`\n- 🔄 **Previous:** \`${oldLine}\`\n\n*(Browser refresh karein changes dekhne ke liye.)*`;
+          return `✅ **Jena GUI CSS Variable Updated!**\n- 🎯 **Updated:** \`${newLine}\`\n- 🔄 **Previous:** \`${oldLine}\`\n\n⚡ **Dynamic Hot-Reload Applied:** Browser styling live update ho chuki hai!`;
         }
       }
 
@@ -1662,7 +1674,7 @@ class LocalEngine {
         const newCss = addMatch[1].trim().replace(/^```css\s*|^```\s*|```$/g, '');
         content = content.trimEnd() + `\n\n/* Custom User Added Style */\n${newCss}\n`;
         fs.writeFileSync(cssPath, content, 'utf8');
-        return `✅ **Custom CSS Rule Added to \`public/style.css\`!**\n\`\`\`css\n${newCss}\n\`\`\`\n\n*(Browser refresh karein changes dekhne ke liye.)*`;
+        return `✅ **Custom CSS Rule Added to \`public/style.css\`!**\n\`\`\`css\n${newCss}\n\`\`\`\n\n⚡ **Dynamic Hot-Reload Applied:** Browser styling live update ho chuki hai!`;
       }
 
       return (
@@ -1686,7 +1698,7 @@ class LocalEngine {
         }
         content = content.replace(oldStr, newStr);
         fs.writeFileSync(htmlPath, content, 'utf8');
-        return `✅ **HTML Updated Successfully!**\nReplaced in \`public/index.html\`:\n\`${oldStr}\`\n➔ With:\n\`${newStr}\``;
+        return `✅ **HTML Updated Successfully!**\nReplaced in \`public/index.html\`:\n\`${oldStr}\`\n➔ With:\n\`${newStr}\`\n\n🔄 **Dynamic Page Reload:** Browser reload ho raha hai!`;
       }
       return `💡 HTML edit karne ke liye: \`index.html main change karo: replace "old text" with "new text"\``;
     }
@@ -1713,7 +1725,7 @@ class LocalEngine {
           return `❌ **JavaScript Syntax Validation Failed:**\nIs tabdeeli ke baad \`app.js\` mein syntax error aa jayega:\n\`${syntaxErr.message}\`\nFile save nahi ki gayi taake GUI crash na ho.`;
         }
         fs.writeFileSync(jsPath, updated, 'utf8');
-        return `✅ **JavaScript Updated Successfully!**\nReplaced in \`public/app.js\`:\n\`${oldStr}\`\n➔ With:\n\`${newStr}\`\n\n*(Browser refresh karein changes dekhne ke liye.)*`;
+        return `✅ **JavaScript Updated Successfully!**\nReplaced in \`public/app.js\`:\n\`${oldStr}\`\n➔ With:\n\`${newStr}\`\n\n🔄 **Dynamic Page Reload:** Browser reload ho raha hai!`;
       }
       return `💡 JavaScript edit karne ke liye: \`app.js main change karo: replace "old code" with "new code"\``;
     }
@@ -2936,6 +2948,23 @@ function startServer() {
           error: isErr ? localResponse : null
         });
 
+        if (!isErr && localResponse) {
+          if (localIntent === 'reload_page') {
+            sendEvent({ type: 'hot_reload', target: 'page' });
+          } else if (localIntent === 'modify_component') {
+            const isHtml = /HTML Content Updated/i.test(localResponse);
+            sendEvent({ type: 'hot_reload', target: isHtml ? 'page' : 'css' });
+          } else if (localIntent === 'edit_gui') {
+            const isPage = /HTML Updated|app\.js/i.test(localResponse);
+            const isCss = /CSS Updated|CSS Variable|CSS Rule/i.test(localResponse);
+            if (isPage) {
+              sendEvent({ type: 'hot_reload', target: 'page' });
+            } else if (isCss) {
+              sendEvent({ type: 'hot_reload', target: 'css' });
+            }
+          }
+        }
+
         sendEvent({
           type: 'done',
           text: localResponse,
@@ -2994,7 +3023,12 @@ function startServer() {
     if (pathname === '/' || pathname === '/settings' || pathname === '/models' || pathname === '/providers') {
       const indexFile = path.join(PUBLIC_DIR, 'index.html');
       if (fs.existsSync(indexFile)) {
-        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.writeHead(200, {
+          'Content-Type': 'text/html; charset=utf-8',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        });
         return fs.createReadStream(indexFile).pipe(res);
       }
     }
@@ -3011,7 +3045,12 @@ function startServer() {
       if (err || !stats.isFile()) {
         const indexFile = path.join(PUBLIC_DIR, 'index.html');
         if (fs.existsSync(indexFile)) {
-          res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+          res.writeHead(200, {
+            'Content-Type': 'text/html; charset=utf-8',
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+          });
           return fs.createReadStream(indexFile).pipe(res);
         }
         res.writeHead(404);
@@ -3019,7 +3058,12 @@ function startServer() {
       }
 
       const ext = path.extname(filePath).toLowerCase();
-      res.writeHead(200, { 'Content-Type': MIME_TYPES[ext] || 'application/octet-stream' });
+      res.writeHead(200, {
+        'Content-Type': MIME_TYPES[ext] || 'application/octet-stream',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      });
       fs.createReadStream(filePath).pipe(res);
     });
   });

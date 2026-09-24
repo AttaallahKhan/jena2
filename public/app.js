@@ -133,6 +133,7 @@ document.addEventListener('DOMContentLoaded', () => {
     await fetchConfig();
     await fetchMemory();
     await fetchLogs();
+    if (promptInput) promptInput.focus();
   }
 
   // --- 2-PAGE NAVIGATION SYSTEM ---
@@ -517,6 +518,22 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
     });
+
+    // Page Refresh & Dynamic Hot-Reload button
+    const btnPageRefresh = document.getElementById('btnPageRefresh');
+    if (btnPageRefresh) {
+      btnPageRefresh.addEventListener('click', (e) => {
+        if (e.shiftKey || e.ctrlKey) {
+          showToast('🔄 Full page reload ho raha hai...');
+          setTimeout(() => window.location.reload(), 300);
+        } else {
+          reloadStylesheets();
+          fetchConfig();
+          fetchMemory();
+          showToast('🔄 Styles & status live update ho gaye!');
+        }
+      });
+    }
 
     // Add Key (Page 2)
     btnAddKey.addEventListener('click', handleAddKey);
@@ -1262,6 +1279,14 @@ document.addEventListener('DOMContentLoaded', () => {
   function handleServerEvent(event, bubble, meta) {
     if (event.type === 'mode') {
       meta.innerHTML = `<span class="mode-badge ${event.mode}">${event.mode === 'offline' ? '⚡ Offline Local' : '🌐 Online Cloud'}</span>`;
+    } else if (event.type === 'hot_reload') {
+      if (event.target === 'css') {
+        reloadStylesheets();
+        showToast('🎨 Stylesheet dynamically reloaded!');
+      } else if (event.target === 'page') {
+        showToast('🔄 Page reload ho raha hai...');
+        setTimeout(() => window.location.reload(), 600);
+      }
     } else if (event.type === 'thought') {
       bubble.innerHTML = `<div style="color:var(--text-muted); font-size:12px; margin-bottom:6px;"><em>${escapeHtml(event.content)}</em></div>`;
     } else if (event.type === 'done') {
@@ -1281,6 +1306,34 @@ document.addEventListener('DOMContentLoaded', () => {
     } else if (event.type === 'error') {
       bubble.innerHTML = `<span style="color: var(--accent-red);">❌ ${escapeHtml(event.error)}</span>`;
     }
+  }
+
+  function reloadStylesheets() {
+    const links = document.querySelectorAll('link[rel="stylesheet"]');
+    links.forEach(link => {
+      const rawHref = link.getAttribute('data-origin-href') || link.getAttribute('href').split('?')[0];
+      if (!link.getAttribute('data-origin-href')) {
+        link.setAttribute('data-origin-href', rawHref);
+      }
+      link.href = `${rawHref}?v=${Date.now()}`;
+    });
+  }
+
+  function showToast(message, duration = 3000) {
+    let container = document.querySelector('.toast-container');
+    if (!container) {
+      container = document.createElement('div');
+      container.className = 'toast-container';
+      document.body.appendChild(container);
+    }
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.innerHTML = message;
+    container.appendChild(toast);
+    setTimeout(() => {
+      toast.classList.add('toast-exit');
+      setTimeout(() => toast.remove(), 250);
+    }, duration);
   }
 
   function appendMessage(role, text, state = '') {
