@@ -80,7 +80,38 @@ Jena v0.3 ko ground zero se aik ultra-minimalist, lightweight aur powerful archi
    - **Web GUI (Page 2 Card 6):**
      - GUI se direct conversation logs aur failure logs dekhein, refresh karein, ya clear karein.
 
-7. **Persona & Language Rules:**
+7. **Offline Web Development & Scaffolding Engine (0 Tokens • Zero Dependency):**
+   - Jena offline mode mein HTML5, CSS3, Modern JavaScript (ES6+), aur Node.js ke mukammal web projects generate karti hai:
+     - `webpage banao portfolio [name]` : Modern portfolio with responsive navigation, hero section, project grid, aur contact cards.
+     - `webpage banao landing [name]` : High-converting SaaS landing page with features grid, CTA, aur glassmorphic styling.
+     - `webpage banao dashboard [name]` : Analytics dashboard with sidebar, stats cards, aur data table.
+     - `webpage banao nodejs [name]` : Pure native Node.js HTTP REST API server with healthcheck endpoint aur `package.json`.
+     - `webpage banao blank [name]` : Clean HTML/CSS/JS boilerplate template.
+   - Yeh tamam web files Jena ke local engine se instant (<0.1s) generate hoti hain bina kisi AI token ke.
+
+8. **🎨 Jena GUI Self-Inspection & Live Self-Editing:**
+   - Jena apne poore codebase aur GUI ko inspect aur directly edit kar sakti hai:
+     - `apne index.html ko explain karo`: HTML structure aur components ka complete architectural breakdown.
+     - `explain style.css`: CSS variables, design tokens, color palette aur glassmorphic rules ka jaiza.
+     - `explain app.js`: SPA client router, SSE stream parser, state management ka breakdown.
+     - `explain server.js`: Backend hybrid architecture, filesystem engine aur endpoints ka jaiza.
+     - `css main background color #050811 kardo`: Live CSS variable update (browser refresh par instant apply).
+     - `css main yeh changes karo: replace "old" with "new"`: Precise string replacement in `public/style.css`.
+     - `css main add karo: .my-style { ... }`: Custom CSS rules appending to stylesheet.
+     - `index.html main change karo: replace "old" with "new"`: Direct edit on GUI HTML file.
+
+9. **📚 Offline Web Knowledge Base & Syntax Cheatsheets:**
+   - `explain html`: Semantic elements, viewport meta tags, forms, media tags.
+   - `explain css`: Flexbox layout, CSS Grid 2D, CSS Variables, glassmorphism, media queries.
+   - `explain js` / `explain javascript`: Modern ES6+, async/await, DOM events, SSE streaming.
+   - `explain nodejs`: Native HTTP server, filesystem streams, event emitters.
+
+10. **✍️ Local File Editor Engine (0 Tokens):**
+    - `write file <path> <content>` : Nayi file create karke content likhna.
+    - `edit file <path> replace "old" with "new"` : File ke andar target text replace karna.
+    - `append file <path> <content>` : Mojooda file ke aakhir mein content shamil karna.
+
+11. **Persona & Language Rules:**
    - Female persona ("main karungi", "samajh gayi", "main check karti hoon").
    - Default language: Roman Urdu (Pakistani Urdu written in standard Latin script).
    - English: Technical code aur programming terms ke liye.
