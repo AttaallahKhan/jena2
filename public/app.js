@@ -624,6 +624,8 @@ document.addEventListener('DOMContentLoaded', () => {
           return;
         }
       });
+    }
+
     // Card 6: Log Tabs & Actions
     if (tabLogConv && tabLogFail) {
       tabLogConv.addEventListener('click', () => {
