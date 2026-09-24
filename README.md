@@ -28,6 +28,23 @@ Jena v0.3 ko ground zero se aik ultra-minimalist, lightweight aur powerful archi
      - Local folder exploration & file reading.
      - Safe local instant math calculations.
      - Jena persona greeting & introduction.
+   - 📂 **Local Filesystem Navigation (0 Tokens • Full System Control):**
+     - `pwd` / `kahan khari ho`: Current working directory check.
+     - `cd <folder>`: Active directory tabdeel karein (e.g. `cd ~/jena2`).
+     - `ls [folder]` / `files dikhao`: Directory listing with file sizes.
+     - `cat <file>`: File contents syntax-highlighted preview.
+     - `tree [folder]`: Directory tree visualization.
+     - `find <term>`: Recursive file and folder search.
+     - `mkdir <folder>` & `touch <file>`: Local folder aur file creation.
+   - 🧠 **Self-Learning & Self-Updating Offline Operations Engine:**
+     - Jena nayi commands aur custom offline operations seekh kar permanent save karti hai (`~/.jena/memory.json`).
+     - Sikhane ka tareeqa:
+       - `seekho command "myip" = curl ifconfig.me`
+       - `seekho: jab main kahoon "system status" to offline command run karo "uptime && free -h"`
+       - `seekho: trigger -> command`
+       - `seekho: Mera favourite code editor Neovim hai` (knowledge fact)
+     - Ek dafa seekhne ke baad Jena us operation ko apne offline engine mein update kar leti hai aur agle kisi bhi waqt bina kisi AI token ke offline execute karti hai.
+     - GUI Page 2 par "🧠 Self-Learned Local Operations & Memory Engine" panel mojood hai jahan se aap operations add, delete, aur direct `▶️ Run` button se chala kar live terminal output dekh sakte hain.
    - 🌐 **Online Cloud AI Engine:**
      - High-speed cloud models for advanced coding, debugging, reasoning, and creative work.
      - **Groq LPU:** `qwen/qwen3.8-27b` (Default • Ultra Fast), `llama-3.3-70b-versatile`, `llama-3.1-8b-instant`, `mixtral-8x7b-32768`.

@@ -72,6 +72,39 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnCancelAllowance = document.getElementById('btnCancelAllowance');
   const btnSaveAllowance = document.getElementById('btnSaveAllowance');
 
+  // Memory & CWD Elements
+  const mainCwdText = document.getElementById('mainCwdText');
+  const btnQuickLs = document.getElementById('btnQuickLs');
+  const btnQuickTree = document.getElementById('btnQuickTree');
+  const btnQuickMemory = document.getElementById('btnQuickMemory');
+
+  const learnedOpsBadge = document.getElementById('learnedOpsBadge');
+  const inputCwdPath = document.getElementById('inputCwdPath');
+  const btnChangeCwd = document.getElementById('btnChangeCwd');
+  const btnResetCwdHome = document.getElementById('btnResetCwdHome');
+  const cwdFeedback = document.getElementById('cwdFeedback');
+
+  const newOpTrigger = document.getElementById('newOpTrigger');
+  const newOpCommand = document.getElementById('newOpCommand');
+  const newOpDesc = document.getElementById('newOpDesc');
+  const btnAddOp = document.getElementById('btnAddOp');
+  const learnedOpFeedback = document.getElementById('learnedOpFeedback');
+
+  const newFactText = document.getElementById('newFactText');
+  const newFactTopic = document.getElementById('newFactTopic');
+  const btnAddFact = document.getElementById('btnAddFact');
+  const learnedFactFeedback = document.getElementById('learnedFactFeedback');
+
+  const opsCountText = document.getElementById('opsCountText');
+  const learnedOpsListContainer = document.getElementById('learnedOpsListContainer');
+  const factsCountText = document.getElementById('factsCountText');
+  const learnedFactsListContainer = document.getElementById('learnedFactsListContainer');
+
+  const opExecutionBox = document.getElementById('opExecutionBox');
+  const opExecutionTitle = document.getElementById('opExecutionTitle');
+  const btnCloseOpExecution = document.getElementById('btnCloseOpExecution');
+  const opExecutionContent = document.getElementById('opExecutionContent');
+
   // State
   let activeConfig = null;
   let currentMode = 'online'; // 'online' | 'offline'
@@ -86,6 +119,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setupNavigation();
     setupEventListeners();
     await fetchConfig();
+    await fetchMemory();
   }
 
   // --- 2-PAGE NAVIGATION SYSTEM ---
@@ -505,6 +539,80 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
 
+    // Quick CWD Bar buttons (Page 1)
+    if (btnQuickLs) {
+      btnQuickLs.addEventListener('click', () => {
+        promptInput.value = 'ls';
+        handleSendMessage();
+      });
+    }
+    if (btnQuickTree) {
+      btnQuickTree.addEventListener('click', () => {
+        promptInput.value = 'tree';
+        handleSendMessage();
+      });
+    }
+    if (btnQuickMemory) {
+      btnQuickMemory.addEventListener('click', () => {
+        promptInput.value = 'kya seekha hai';
+        handleSendMessage();
+      });
+    }
+
+    // CWD Directory Change (Page 2)
+    if (btnChangeCwd) {
+      btnChangeCwd.addEventListener('click', handleChangeCwd);
+    }
+    if (btnResetCwdHome) {
+      btnResetCwdHome.addEventListener('click', () => {
+        inputCwdPath.value = '~';
+        handleChangeCwd();
+      });
+    }
+
+    // Add Learned Operation & Fact (Page 2)
+    if (btnAddOp) {
+      btnAddOp.addEventListener('click', handleAddLearnedOp);
+    }
+    if (btnAddFact) {
+      btnAddFact.addEventListener('click', handleAddLearnedFact);
+    }
+    if (btnCloseOpExecution) {
+      btnCloseOpExecution.addEventListener('click', () => {
+        opExecutionBox.style.display = 'none';
+      });
+    }
+
+    // Ops List Actions (Run & Delete)
+    if (learnedOpsListContainer) {
+      learnedOpsListContainer.addEventListener('click', async (e) => {
+        const runBtn = e.target.closest('[data-action="run-op"]');
+        if (runBtn) {
+          const opId = runBtn.getAttribute('data-id');
+          await handleRunOp(opId);
+          return;
+        }
+        const delBtn = e.target.closest('[data-action="del-op"]');
+        if (delBtn) {
+          const opId = delBtn.getAttribute('data-id');
+          await handleDeleteOp(opId);
+          return;
+        }
+      });
+    }
+
+    // Facts List Actions (Delete)
+    if (learnedFactsListContainer) {
+      learnedFactsListContainer.addEventListener('click', async (e) => {
+        const delBtn = e.target.closest('[data-action="del-fact"]');
+        if (delBtn) {
+          const factId = delBtn.getAttribute('data-id');
+          await handleDeleteFact(factId);
+          return;
+        }
+      });
+    }
+
     // Allowance Modal
     cardAllowance.addEventListener('click', () => {
       if (activeConfig && activeConfig.tokens) {
@@ -529,6 +637,233 @@ document.addEventListener('DOMContentLoaded', () => {
       await fetchConfig();
     } catch (e) {
       console.error('Settings save error:', e);
+    }
+  }
+
+  // --- MEMORY & CWD MANAGEMENT ---
+  async function fetchMemory() {
+    try {
+      const res = await fetch('/api/memory');
+      if (!res.ok) return;
+      const data = await res.json();
+      renderMemory(data);
+    } catch (err) {
+      console.error('Fetch memory error:', err);
+    }
+  }
+
+  function renderMemory(data) {
+    if (!data) return;
+
+    // Update CWD
+    if (data.cwd) {
+      if (mainCwdText) mainCwdText.textContent = data.cwd;
+      if (inputCwdPath) inputCwdPath.value = data.cwd;
+    }
+
+    // Update counts & badges
+    const ops = data.operations || [];
+    const facts = data.facts || [];
+
+    if (learnedOpsBadge) learnedOpsBadge.textContent = `${ops.length} Operations`;
+    if (opsCountText) opsCountText.textContent = ops.length;
+    if (factsCountText) factsCountText.textContent = facts.length;
+
+    // Render Operations
+    if (learnedOpsListContainer) {
+      learnedOpsListContainer.innerHTML = '';
+      if (ops.length === 0) {
+        learnedOpsListContainer.innerHTML = `
+          <div style="text-align:center; padding: 12px; color: var(--text-muted); font-size: 11.5px;">
+            Koi custom operation nahi hai. Upar se add karein ya chat mein sikhayein.
+          </div>`;
+      } else {
+        ops.forEach(op => {
+          const row = document.createElement('div');
+          row.className = 'op-item-row';
+          row.innerHTML = `
+            <div class="op-info">
+              <span class="op-trigger">🏷️ ${escapeHtml(op.trigger)}</span>
+              <span class="op-cmd">${escapeHtml(op.command)}</span>
+              ${op.description ? `<span class="op-desc">${escapeHtml(op.description)}</span>` : ''}
+            </div>
+            <div class="op-actions">
+              <button type="button" class="btn-run-op" data-action="run-op" data-id="${escapeHtml(op.id)}" title="Run this command offline (0 tokens)">▶️ Run</button>
+              <button type="button" class="btn-del-item" data-action="del-op" data-id="${escapeHtml(op.id)}" title="Delete operation">&times;</button>
+            </div>
+          `;
+          learnedOpsListContainer.appendChild(row);
+        });
+      }
+    }
+
+    // Render Facts
+    if (learnedFactsListContainer) {
+      learnedFactsListContainer.innerHTML = '';
+      if (facts.length === 0) {
+        learnedFactsListContainer.innerHTML = `
+          <div style="text-align:center; padding: 12px; color: var(--text-muted); font-size: 11.5px;">
+            Koi fact saved nahi hai. Upar se add karein ya chat mein bolein <code>seekho: fact</code>.
+          </div>`;
+      } else {
+        facts.forEach(f => {
+          const row = document.createElement('div');
+          row.className = 'fact-item-row';
+          row.innerHTML = `
+            <div style="flex-grow: 1;">
+              ${f.topic ? `<span class="fact-topic">${escapeHtml(f.topic)}</span><br>` : ''}
+              <span class="fact-text">${escapeHtml(f.fact)}</span>
+            </div>
+            <button type="button" class="btn-del-item" data-action="del-fact" data-id="${escapeHtml(f.id)}" title="Delete fact">&times;</button>
+          `;
+          learnedFactsListContainer.appendChild(row);
+        });
+      }
+    }
+  }
+
+  async function handleChangeCwd() {
+    const targetPath = (inputCwdPath.value || '').trim();
+    if (!targetPath) return;
+
+    btnChangeCwd.disabled = true;
+    try {
+      const res = await fetch('/api/fs/cd', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: targetPath })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showFeedback(cwdFeedback, true, `✅ ${data.message || 'CWD update ho gaya.'}`);
+        await fetchMemory();
+      } else {
+        showFeedback(cwdFeedback, false, `❌ ${data.error || 'CWD update nahi ho saka.'}`);
+      }
+    } catch (e) {
+      showFeedback(cwdFeedback, false, 'Network Error: ' + e.message);
+    } finally {
+      btnChangeCwd.disabled = false;
+    }
+  }
+
+  async function handleAddLearnedOp() {
+    const trigger = (newOpTrigger.value || '').trim();
+    const command = (newOpCommand.value || '').trim();
+    const description = (newOpDesc.value || '').trim();
+
+    if (!trigger || !command) {
+      showFeedback(learnedOpFeedback, false, 'Trigger aur Terminal Command likhna zaroori hai.');
+      return;
+    }
+
+    btnAddOp.disabled = true;
+    try {
+      const res = await fetch('/api/memory/operation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ trigger, command, description })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showFeedback(learnedOpFeedback, true, `✅ Operation '${trigger}' Jena ne seekh liya hai!`);
+        newOpTrigger.value = '';
+        newOpCommand.value = '';
+        newOpDesc.value = '';
+        await fetchMemory();
+      } else {
+        showFeedback(learnedOpFeedback, false, `❌ ${data.error || 'Operation save nahi ho saka.'}`);
+      }
+    } catch (e) {
+      showFeedback(learnedOpFeedback, false, 'Network Error: ' + e.message);
+    } finally {
+      btnAddOp.disabled = false;
+    }
+  }
+
+  async function handleAddLearnedFact() {
+    const fact = (newFactText.value || '').trim();
+    const topic = (newFactTopic.value || '').trim();
+
+    if (!fact) {
+      showFeedback(learnedFactFeedback, false, 'Fact text likhna zaroori hai.');
+      return;
+    }
+
+    btnAddFact.disabled = true;
+    try {
+      const res = await fetch('/api/memory/fact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fact, topic })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showFeedback(learnedFactFeedback, true, '✅ Maloomat Jena ki memory mein save ho gayi!');
+        newFactText.value = '';
+        newFactTopic.value = '';
+        await fetchMemory();
+      } else {
+        showFeedback(learnedFactFeedback, false, `❌ ${data.error || 'Fact save nahi ho saka.'}`);
+      }
+    } catch (e) {
+      showFeedback(learnedFactFeedback, false, 'Network Error: ' + e.message);
+    } finally {
+      btnAddFact.disabled = false;
+    }
+  }
+
+  async function handleRunOp(opId) {
+    if (!opId) return;
+    opExecutionBox.style.display = 'block';
+    opExecutionTitle.textContent = '⚡ Running Offline Operation...';
+    opExecutionContent.textContent = 'Executing command inside Termux local engine...';
+
+    try {
+      const res = await fetch('/api/memory/run-op', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: opId })
+      });
+      const data = await res.json();
+      if (data.success) {
+        opExecutionTitle.textContent = `⚡ Output: ${data.operation?.trigger || opId} (Offline • 0 Tokens)`;
+        opExecutionContent.textContent = data.output;
+      } else {
+        opExecutionTitle.textContent = `❌ Execution Failed`;
+        opExecutionContent.textContent = data.error || 'Command failed';
+      }
+    } catch (e) {
+      opExecutionTitle.textContent = `❌ Network Error`;
+      opExecutionContent.textContent = e.message;
+    }
+  }
+
+  async function handleDeleteOp(opId) {
+    if (!confirm('Yeh learned operation delete karein?')) return;
+    try {
+      await fetch('/api/memory/operation', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: opId })
+      });
+      await fetchMemory();
+    } catch (e) {
+      alert('Delete error: ' + e.message);
+    }
+  }
+
+  async function handleDeleteFact(factId) {
+    if (!confirm('Yeh memory fact delete karein?')) return;
+    try {
+      await fetch('/api/memory/fact', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: factId })
+      });
+      await fetchMemory();
+    } catch (e) {
+      alert('Delete error: ' + e.message);
     }
   }
 
@@ -806,6 +1141,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       await fetchConfig();
+      await fetchMemory();
     } catch (err) {
       bubble.textContent = `❌ Error: ${err.message}`;
     } finally {

@@ -80,6 +80,20 @@
         </button>
       </div>
 
+      <!-- CWD Path Indicator -->
+      <div class="cwd-status-bar">
+        <div class="cwd-info">
+          <span class="cwd-icon">📍</span>
+          <span class="cwd-label">CWD:</span>
+          <code class="cwd-path" id="mainCwdText">/data/data/com.termux/files/home</code>
+        </div>
+        <div class="cwd-quick-actions">
+          <button type="button" class="btn-xs-cwd" id="btnQuickLs" title="List files in current directory">📂 ls</button>
+          <button type="button" class="btn-xs-cwd" id="btnQuickTree" title="Folder tree view">🌲 tree</button>
+          <button type="button" class="btn-xs-cwd" id="btnQuickMemory" title="Learned operations & facts">🧠 memory</button>
+        </div>
+      </div>
+
       <!-- Chat Viewport -->
       <main class="chat-viewport" id="chatViewport">
         <div class="chat-stream" id="chatStream">
@@ -94,12 +108,15 @@
             </div>
             <p class="quick-title">Quick Actions Try Karein:</p>
             <div class="quick-prompts">
+              <button class="prompt-chip" data-prompt="ls">📂 ls (Files)</button>
+              <button class="prompt-chip" data-prompt="pwd">📍 pwd (Current Path)</button>
+              <button class="prompt-chip" data-prompt="tree">🌲 Tree Structure</button>
+              <button class="prompt-chip" data-prompt="kya seekha hai">🧠 Kya Seekha Hai?</button>
               <button class="prompt-chip" data-prompt="battery check karo">🔋 Battery Check</button>
               <button class="prompt-chip" data-prompt="kitni ram free hai">🧠 RAM Report</button>
               <button class="prompt-chip" data-prompt="storage check karo">💾 Disk Space</button>
               <button class="prompt-chip" data-prompt="aaj kya date hai">🕒 Date & Time</button>
               <button class="prompt-chip" data-prompt="hisab karo 1500 * 24">🧮 Math: 1500 * 24</button>
-              <button class="prompt-chip" data-prompt="tum kon ho">🤖 Jena Intro</button>
             </div>
           </div>
         </div>
@@ -294,6 +311,107 @@
 
               <div id="customProvidersListContainer" style="margin-top: 12px;">
                 <!-- Populated dynamically -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 5: Self-Learned Operations & Offline Filesystem Engine -->
+          <div class="settings-card card-full-width">
+            <div class="settings-card-header">
+              <h3>🧠 Self-Learned Local Operations & Memory Engine</h3>
+              <span class="badge" id="learnedOpsBadge">0 Operations</span>
+            </div>
+            <div class="settings-card-body">
+              <p class="section-desc">
+                Jena self-learning engine: naye offline tasks aur shell commands sikhayein jo Termux mein bina kisi token ke offline run honge. Aap chat mein bhi bol sakte hain (e.g. <code>seekho command "myip" = curl ifconfig.me</code>) ya yahan directly add karein.
+              </p>
+
+              <!-- CWD Navigation Box -->
+              <div class="cwd-control-box">
+                <label for="inputCwdPath" style="font-size: 12px; font-weight: 700; color: var(--text-primary); margin-bottom: 6px; display: block;">
+                  📂 Jena Current Working Directory (CWD):
+                </label>
+                <div class="cwd-input-group">
+                  <input type="text" id="inputCwdPath" class="form-control" placeholder="/data/data/com.termux/files/home">
+                  <button type="button" class="btn btn-outline" id="btnChangeCwd">Change (cd)</button>
+                  <button type="button" class="btn btn-outline" id="btnResetCwdHome" title="Jump to Home (~)">&sim; Home</button>
+                </div>
+                <div id="cwdFeedback" class="test-feedback-banner" style="display: none; margin-top: 8px;"></div>
+              </div>
+
+              <!-- Add New Learned Operation Form -->
+              <div style="background: rgba(0, 0, 0, 0.2); padding: 14px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); margin-top: 10px;">
+                <h4 style="font-size: 13px; color: var(--accent-cyan); margin-bottom: 8px; font-weight: 700;">➕ Naya Offline Operation Sikhayein:</h4>
+                <div class="form-row">
+                  <div class="form-group" style="width: 180px;">
+                    <label for="newOpTrigger">Trigger Phrase / Name:</label>
+                    <input type="text" id="newOpTrigger" class="form-control" placeholder="e.g. check ip, git status">
+                  </div>
+                  <div class="form-group flex-grow">
+                    <label for="newOpCommand">Terminal Command (Bash/Sh):</label>
+                    <input type="text" id="newOpCommand" class="form-control" placeholder="e.g. curl -s ifconfig.me ya git status -s">
+                  </div>
+                  <div class="form-group flex-grow">
+                    <label for="newOpDesc">Description (Optional):</label>
+                    <input type="text" id="newOpDesc" class="form-control" placeholder="e.g. Public IP check karein">
+                  </div>
+                  <div class="form-group" style="align-self: flex-end;">
+                    <button type="button" class="btn btn-primary" id="btnAddOp">💾 Seekho & Save</button>
+                  </div>
+                </div>
+                <div id="learnedOpFeedback" class="test-feedback-banner" style="display: none; margin-top: 10px;"></div>
+              </div>
+
+              <!-- Add Knowledge Fact Form -->
+              <div style="background: rgba(0, 0, 0, 0.2); padding: 14px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); margin-top: 10px;">
+                <h4 style="font-size: 13px; color: var(--accent-purple); margin-bottom: 8px; font-weight: 700;">📌 Maloomat / Fact Yaad Rakhwayein:</h4>
+                <div class="form-row">
+                  <div class="form-group flex-grow">
+                    <label for="newFactText">Knowledge / Fact Text:</label>
+                    <input type="text" id="newFactText" class="form-control" placeholder="e.g. Mera preferred language python hai ya project root /home/jena2 hai">
+                  </div>
+                  <div class="form-group" style="width: 180px;">
+                    <label for="newFactTopic">Topic (Optional):</label>
+                    <input type="text" id="newFactTopic" class="form-control" placeholder="e.g. preference, project">
+                  </div>
+                  <div class="form-group" style="align-self: flex-end;">
+                    <button type="button" class="btn btn-accent" id="btnAddFact">📌 Yaad Rakho</button>
+                  </div>
+                </div>
+                <div id="learnedFactFeedback" class="test-feedback-banner" style="display: none; margin-top: 10px;"></div>
+              </div>
+
+              <!-- Terminal Output Display Box (when user clicks ▶️ Run Offline) -->
+              <div id="opExecutionBox" class="terminal-preview-box" style="display: none; margin-top: 14px;">
+                <div class="terminal-preview-header">
+                  <span id="opExecutionTitle">⚡ Terminal Execution Output</span>
+                  <button type="button" class="btn-xs-cwd" id="btnCloseOpExecution">Close ✖</button>
+                </div>
+                <pre class="terminal-preview-content" id="opExecutionContent"></pre>
+              </div>
+
+              <hr class="divider" style="margin: 16px 0;">
+
+              <!-- Operations List & Facts List Grid -->
+              <div class="memory-grid">
+                <div>
+                  <h4 style="font-size: 12px; color: var(--text-secondary); margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between;">
+                    <span>⚡ Registered Offline Operations:</span>
+                    <span id="opsCountText" style="font-family: var(--font-mono); color: var(--accent-cyan);">0</span>
+                  </h4>
+                  <div class="ops-list" id="learnedOpsListContainer">
+                    <!-- Populated dynamically with ▶️ Run and 🗑️ Delete buttons -->
+                  </div>
+                </div>
+                <div>
+                  <h4 style="font-size: 12px; color: var(--text-secondary); margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between;">
+                    <span>💡 Learned Facts & Preferences:</span>
+                    <span id="factsCountText" style="font-family: var(--font-mono); color: var(--accent-purple);">0</span>
+                  </h4>
+                  <div class="facts-list" id="learnedFactsListContainer">
+                    <!-- Populated dynamically -->
+                  </div>
+                </div>
               </div>
             </div>
           </div>
