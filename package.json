@@ -1,20 +1,24 @@
 {
-  "name": "jena-web-gui",
-  "version": "1.0.0",
-  "description": "Modern Web GUI for Jena Autonomous AI Agent",
-  "main": "web/server.js",
+  "name": "jena",
+  "version": "0.3.0",
+  "description": "Jena: Autonomous Hybrid AI Agent for Termux & Linux",
+  "main": "server.js",
+  "bin": {
+    "jena": "./server.js"
+  },
   "scripts": {
-    "start": "node web/server.js",
-    "web": "node web/server.js",
-    "dev": "node --watch web/server.js"
+    "start": "node server.js",
+    "gui": "node server.js",
+    "test-model": "node server.js --test",
+    "sync": "node server.js --sync"
   },
   "keywords": [
-    "jena",
     "ai",
-    "autonomous-agent",
+    "agent",
+    "hybrid-ai",
     "termux",
-    "web-gui"
+    "autonomous"
   ],
-  "author": "Jena Team",
+  "author": "Attaallah Khan",
   "license": "MIT"
 }

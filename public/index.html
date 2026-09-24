@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Jena v0.3 — Autonomous Hybrid AI Agent</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Top Navigation Header -->
+    <header class="app-header">
+      <div class="brand">
+        <div class="avatar-glow">🤖</div>
+        <div class="brand-text">
+          <h1>JENA <span class="version-tag">v0.3</span></h1>
+          <p class="subtitle">Autonomous Hybrid AI Agent • Termux / Linux</p>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <div class="hybrid-badge" id="hybridBadge" title="Local Offline Engine + Cloud AI">
+          <span class="pulse-dot"></span>
+          <span id="hybridModeText">Hybrid: Active</span>
+        </div>
+        <button class="btn btn-outline" id="btnOpenKeysModal">
+          🔑 API Keys <span class="badge" id="totalKeysBadge">0</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Token Counter Dashboard Bar -->
+    <section class="token-dashboard">
+      <div class="token-card" id="cardAllowance" title="Click to edit token allowance">
+        <div class="token-label">🎯 ALLOWANCE</div>
+        <div class="token-val" id="valAllowance">500,000</div>
+        <div class="token-sub">Total Token Budget ✏️</div>
+      </div>
+      <div class="token-card">
+        <div class="token-label">📈 USED TOKENS</div>
+        <div class="token-val" id="valUsed">0</div>
+        <div class="token-sub">Cumulative Consumed</div>
+      </div>
+      <div class="token-card highlight">
+        <div class="token-label">💰 BALANCE</div>
+        <div class="token-val" id="valBalance">500,000</div>
+        <div class="token-sub">Remaining Allowance</div>
+      </div>
+      <div class="token-card speed">
+        <div class="token-label">⚡ PROMPT SPEED</div>
+        <div class="token-val" id="valSpeed">0 <span class="unit">t/s</span></div>
+        <div class="token-sub">Tokens Per Second</div>
+      </div>
+    </section>
+
+    <!-- Provider & Model Control Bar -->
+    <section class="controls-bar">
+      <div class="control-item">
+        <label for="providerSelect">AI Provider</label>
+        <select id="providerSelect" class="form-select">
+          <option value="groq">Groq (Ultra-Fast LPU)</option>
+          <option value="gemini">Google Gemini</option>
+          <option value="openai">OpenAI Compatible</option>
+        </select>
+      </div>
+
+      <div class="control-item flex-grow">
+        <label for="modelSelect">AI Model</label>
+        <select id="modelSelect" class="form-select">
+          <!-- Populated dynamically -->
+        </select>
+      </div>
+
+      <div class="control-buttons">
+        <button class="btn btn-accent" id="btnTestModel" title="Test active provider and model">
+          <span id="testBtnSpinner" class="spinner" style="display: none;"></span>
+          <span id="testBtnIcon">⚡</span> Test Model
+        </button>
+      </div>
+    </section>
+
+    <!-- Test Feedback Banner -->
+    <div id="testFeedback" class="test-feedback-banner" style="display: none;"></div>
+
+    <!-- Chat Viewport -->
+    <main class="chat-viewport" id="chatViewport">
+      <div class="chat-stream" id="chatStream">
+        <!-- Welcome Hero -->
+        <div class="welcome-hero" id="welcomeHero">
+          <div class="hero-icon">✨</div>
+          <h2>Assalam-o-Alaikum! Main Jena hoon.</h2>
+          <p>Aapki autonomous hybrid AI agent aur pair programmer. Mere paas dohra engine hai:</p>
+          <div class="hero-features">
+            <div class="feature-chip">⚡ <strong>Offline Local:</strong> Battery, RAM, Disk, Time & Math (0 Tokens)</div>
+            <div class="feature-chip">🌐 <strong>Online Cloud:</strong> Coding, Debugging & High-Speed LLMs</div>
+          </div>
+          <p class="quick-title">Quick Actions Try Karein:</p>
+          <div class="quick-prompts">
+            <button class="prompt-chip" data-prompt="battery check karo">🔋 Battery Check</button>
+            <button class="prompt-chip" data-prompt="kitni ram free hai">🧠 RAM Report</button>
+            <button class="prompt-chip" data-prompt="storage check karo">💾 Disk Space</button>
+            <button class="prompt-chip" data-prompt="aaj kya date hai">🕒 Date & Time</button>
+            <button class="prompt-chip" data-prompt="hisab karo 1500 * 24">🧮 Math: 1500 * 24</button>
+            <button class="prompt-chip" data-prompt="tum kon ho">🤖 Jena Intro</button>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Chat Input Area -->
+    <footer class="app-footer">
+      <form id="chatForm" class="chat-form">
+        <div class="input-wrapper">
+          <textarea
+            id="promptInput"
+            placeholder="Jena se kuch bhi poochhein ya task dein (Roman Urdu / English)..."
+            rows="1"
+            required
+          ></textarea>
+          <button type="submit" id="btnSend" class="btn-send" title="Send (Enter)">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M22 2L11 13M22 2L15 22L11 13L2 9L22 2Z" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+        </div>
+        <div class="input-footer">
+          <span class="mode-tag" id="inputModeTag">⚡ Hybrid Mode: Routine tasks run locally • Complex queries use Cloud AI</span>
+          <span class="keys-shortcut">Press <strong>Enter</strong> to send • <strong>Shift+Enter</strong> for newline</span>
+        </div>
+      </form>
+    </footer>
+  </div>
+
+  <!-- Multi-API Keys Management Modal -->
+  <div class="modal-backdrop" id="keysModal" style="display: none;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>🔑 Multi-API Key Manager</h3>
+        <button class="btn-close" id="btnCloseKeysModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-desc">
+          Aap har provider ke liye aik ya <strong>multiple API keys</strong> add kar sakte hain. Jab aik key par rate limit aye to Jena doosri key par khud rotate ho jayegi.
+        </p>
+
+        <!-- Add Key Box -->
+        <div class="add-key-box">
+          <div class="form-row">
+            <select id="newKeyProvider" class="form-select">
+              <option value="groq">Groq</option>
+              <option value="gemini">Google Gemini</option>
+              <option value="openai">OpenAI Compatible</option>
+            </select>
+            <input type="password" id="newKeyValue" class="form-control flex-grow" placeholder="Enter API Key (e.g. gsk_... ya AIzaSy...)">
+            <button class="btn btn-primary" id="btnAddKey">Add Key</button>
+          </div>
+        </div>
+
+        <hr class="divider">
+
+        <h4>📋 Configured API Keys</h4>
+        <div class="keys-list" id="keysListContainer">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="btnDoneKeys">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Allowance Edit Modal -->
+  <div class="modal-backdrop" id="allowanceModal" style="display: none;">
+    <div class="modal-card modal-sm">
+      <div class="modal-header">
+        <h3>🎯 Token Allowance Budget</h3>
+        <button class="btn-close" id="btnCloseAllowanceModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <label for="inputAllowance">Apna daily ya monthly token allowance set karein:</label>
+        <input type="number" id="inputAllowance" class="form-control" value="500000" min="1000" step="50000">
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="btnCancelAllowance">Cancel</button>
+        <button class="btn btn-primary" id="btnSaveAllowance">Save Budget</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
