@@ -39,6 +39,12 @@ const JENA_SYSTEM_PROMPT = `You are Jena, an autonomous, highly capable, and int
 - STRICTLY PROHIBITED:
   1. Hindi language vocabulary and Devanagari script are strictly forbidden.
   2. Urdu and Arabic script characters (no Arabic/Persian/Urdu alphabet) must NOT be shown unless user explicitly asks.
+  3. NEVER print raw internal thinking, planning steps, or reasoning drafts in English (e.g. "The user said yes...", "Plan:", "Draft:"). ALWAYS provide the final, helpful, direct answer directly in Roman Urdu.
+
+### PROJECT CONTEXT & FILES
+- Jena's project root directory is /data/data/com.termux/files/home/jena2
+- Jena's 5 core files: server.js, public/index.html, public/style.css, public/app.js, package.json
+- Token Dashboard: 4 cards (ALLOWANCE, USED TOKENS, BALANCE, PROMPT SPEED) styled in public/style.css (.token-dashboard: display: grid, repeat(4, 1fr), gap: 10px; .token-card: padding: 10px 14px, border-radius: 10px).
 
 ### HYBRID CAPABILITIES
 - Offline: You can inspect hardware (battery, RAM, disk, uptime), date & time, run local terminal commands, and perform instant calculations without API tokens.
@@ -554,9 +560,10 @@ class LocalEngine {
 
     // 4. GUI Explanation & Self-Inspection
     if (
-      /(?:apne|apni|meri|current)?\s*(?:index\.html|style\.css|app\.js|server\.js|package\.json|gui|frontend|backend)\s*(?:ko)?\s*(?:explain|samjhao|batao|bataiye|kya hai)/i.test(q) ||
-      /(?:explain|samjhao)\s+(?:apne|apni)?\s*(?:index\.html|style\.css|app\.js|server\.js|package\.json|gui|frontend|backend)/i.test(q) ||
-      /(?:apne|apni)\s+(?:files|code|gui|architecture)\s*(?:ko)?\s*(?:explain|samjhao)/i.test(q)
+      /(?:token\s*(?:dashboard|cards?)|cards?\s*ka\s*size|dashboard\s*cards?|token\s*card\s*size)/i.test(q) ||
+      /(?:apne|apni|meri|current)?\s*(?:index\.html|style\.css|app\.js|server\.js|package\.json|gui|frontend|backend|components?|tokens?|cards?)\s*(?:ko)?\s*(?:explain|samjhao|batao|bataiye|kya hai|size)/i.test(q) ||
+      /(?:explain|samjhao|size)\s+(?:apne|apni)?\s*(?:index\.html|style\.css|app\.js|server\.js|package\.json|gui|frontend|backend|components?|tokens?|cards?)/i.test(q) ||
+      /(?:apne|apni)\s+(?:files|code|gui|architecture|cards?|components?)\s*(?:ko)?\s*(?:explain|samjhao|batao|size)/i.test(q)
     ) {
       return 'explain_gui';
     }
@@ -1038,6 +1045,38 @@ class LocalEngine {
   // --- OFFLINE WEB DEVELOPMENT & GUI EXPLANATION / EDITING ENGINE ---
   static explainGui(query) {
     const q = (query || '').toLowerCase();
+
+    // Specific Target: Token Dashboard / Token Cards
+    if (/(?:token\s*(?:dashboard|cards?)|cards?\s*ka\s*size|dashboard\s*cards?|token\s*card)/i.test(q)) {
+      return (
+        `📊 **Jena Token Dashboard Cards: Dimensions, Layout & Size Breakdown**\n\n` +
+        `Mera Token Dashboard 4 live metrics cards par mushtamil hai jo \`public/style.css\` aur \`public/index.html\` mein define hain:\n\n` +
+        `### 1. 📐 Layout & Dimensions (\`public/style.css\`)\n` +
+        `- **Grid Container (\`.token-dashboard\`):**\n` +
+        `  * **Display Engine:** \`display: grid;\`\n` +
+        `  * **Desktop Columns:** \`grid-template-columns: repeat(4, 1fr);\` (4 barabar responsive columns, poori viewport width 100% cover karti hain)\n` +
+        `  * **Gap:** \`gap: 10px;\` (cards ke darmiyan 10px spacing)\n` +
+        `  * **Margin:** \`margin-top: 12px; flex-shrink: 0;\`\n` +
+        `  * **Mobile Screen (\`@media max-width: 768px\`):** \`grid-template-columns: repeat(2, 1fr);\` (chhoti mobile screen par 2x2 grid ban jata hai)\n\n` +
+        `- **Card Size & Box Model (\`.token-card\`):**\n` +
+        `  * **Internal Padding:** \`padding: 10px 14px;\` (top/bottom: 10px, left/right: 14px)\n` +
+        `  * **Border:** \`1px solid var(--border-color);\` (subtle neon boundary)\n` +
+        `  * **Border Radius:** \`var(--radius-md);\` (10px rounded corners)\n` +
+        `  * **Background Surface:** Glassmorphic \`var(--bg-card);\` with \`backdrop-filter: blur(12px);\`\n` +
+        `  * **Rendered Height:** Taqreeban ~68px se 72px (content aur font metrics ke hisab se dynamically fit hota hai)\n\n` +
+        `### 2. 🎴 4 Token Cards Ka Maqsad:\n` +
+        `1. 🎯 **ALLOWANCE (\`#cardAllowance\`):** Total token budget allowance. Yeh card clickable hai (\`cursor: pointer\`), jis par click karke modal se budget set kiya ja sakta hai.\n` +
+        `2. 📈 **USED TOKENS (\`#valUsed\`):** Ab tak prompts aur responses mein kharch shuda total tokens.\n` +
+        `3. 💰 **BALANCE (\`#valBalance\`):** Baaqi tokens ka hisab (\`Allowance - Used\`).\n` +
+        `4. ⚡ **PROMPT SPEED (\`#valSpeed\`):** Generation speed (\`tokens per second / t/s\`).\n\n` +
+        `### 3. 🔤 Card Typography & Font Sizes:\n` +
+        `- **Label (\`.token-label\`):** \`font-size: 10px; font-weight: 700; letter-spacing: 0.6px; color: var(--text-muted);\`\n` +
+        `- **Value (\`.token-val\`):** \`font-size: 17px; font-weight: 700; font-family: 'JetBrains Mono', monospace;\`\n` +
+        `- **Unit (\`.unit\`):** \`font-size: 11px; font-weight: 500;\`\n` +
+        `- **Subtext (\`.token-sub\`):** \`font-size: 10px; color: var(--text-muted);\`\n\n` +
+        `*(Agar aap inka size, padding, ya font badalna chahein to mujhe bolein, jaise: \`css main token card padding 14px 18px kardo\`)*`
+      );
+    }
 
     // Target 1: index.html
     if (q.includes('index.html') || (q.includes('html') && !q.includes('server') && !q.includes('app.js'))) {
@@ -1900,6 +1939,19 @@ class CloudEngine {
   }
 
   static async callOpenAiCompatible(endpoint, model, apiKey, prompt, temperature, maxTokens) {
+    const recentConvs = LogManager.getRecentConversations(6).reverse();
+    const messages = [
+      { role: 'system', content: this.getEffectiveSystemPrompt() }
+    ];
+    for (const c of recentConvs) {
+      if (c && c.user && c.assistant) {
+        messages.push({ role: 'user', content: c.user });
+        const shortReply = c.assistant.length > 500 ? c.assistant.slice(0, 500) + '...' : c.assistant;
+        messages.push({ role: 'assistant', content: shortReply });
+      }
+    }
+    messages.push({ role: 'user', content: prompt });
+
     const res = await fetch(endpoint, {
       method: 'POST',
       headers: {
@@ -1908,10 +1960,7 @@ class CloudEngine {
       },
       body: JSON.stringify({
         model,
-        messages: [
-          { role: 'system', content: this.getEffectiveSystemPrompt() },
-          { role: 'user', content: prompt }
-        ],
+        messages,
         temperature,
         max_tokens: maxTokens
       })
@@ -1923,7 +1972,10 @@ class CloudEngine {
     }
 
     const data = await res.json();
-    const text = data.choices?.[0]?.message?.content || 'Koi response nahi mila.';
+    let text = data.choices?.[0]?.message?.content || 'Koi response nahi mila.';
+    // Strip any leaked reasoning/thought tags or drafts if present
+    text = text.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+
     const promptTokens = data.usage?.prompt_tokens || Math.round(prompt.length / 4);
     const completionTokens = data.usage?.completion_tokens || Math.round(text.length / 4);
 
@@ -1932,12 +1984,23 @@ class CloudEngine {
 
   static async callGemini(model, apiKey, prompt, temperature, maxTokens) {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+    const recentConvs = LogManager.getRecentConversations(6).reverse();
+    const contents = [];
+    for (const c of recentConvs) {
+      if (c && c.user && c.assistant) {
+        contents.push({ role: 'user', parts: [{ text: c.user }] });
+        const shortReply = c.assistant.length > 500 ? c.assistant.slice(0, 500) + '...' : c.assistant;
+        contents.push({ role: 'model', parts: [{ text: shortReply }] });
+      }
+    }
+    contents.push({ role: 'user', parts: [{ text: prompt }] });
+
     const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: this.getEffectiveSystemPrompt() }] },
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        contents,
         generationConfig: {
           temperature,
           maxOutputTokens: maxTokens
@@ -1951,7 +2014,9 @@ class CloudEngine {
     }
 
     const data = await res.json();
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || 'Koi response nahi mila.';
+    let text = data.candidates?.[0]?.content?.parts?.[0]?.text || 'Koi response nahi mila.';
+    text = text.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+
     const promptTokens = data.usageMetadata?.promptTokenCount || Math.round(prompt.length / 4);
     const completionTokens = data.usageMetadata?.candidatesTokenCount || Math.round(text.length / 4);
 
