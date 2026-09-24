@@ -1691,7 +1691,34 @@ class LocalEngine {
       return `💡 HTML edit karne ke liye: \`index.html main change karo: replace "old text" with "new text"\``;
     }
 
-    return `⚠️ Barah-e-karam target batayein: CSS ya HTML (e.g. \`css main background color #030712 kardo\`).`;
+    // Check if targeting JS / app.js
+    if (/app\.js|javascript|\bjs\b/i.test(q)) {
+      const jsPath = path.join(PUBLIC_DIR, 'app.js');
+      if (!fs.existsSync(jsPath)) return `❌ Error: \`${jsPath}\` mojood nahi hai.`;
+      let content = fs.readFileSync(jsPath, 'utf8');
+      const replaceMatch = q.match(/replace\s+["']([^"']+)["']\s+with\s+["']([^"']+)["']/i) ||
+                           q.match(/badlo\s+["']([^"']+)["']\s+ko\s+["']([^"']+)["']/i);
+      if (replaceMatch) {
+        const oldStr = replaceMatch[1];
+        const newStr = replaceMatch[2];
+        if (!content.includes(oldStr)) {
+          return `⚠️ Target content JavaScript mein nahi mila:\n\`${oldStr}\``;
+        }
+        const updated = content.replace(oldStr, newStr);
+        // Syntax validation check before saving
+        try {
+          const vm = require('vm');
+          new vm.Script(updated);
+        } catch (syntaxErr) {
+          return `❌ **JavaScript Syntax Validation Failed:**\nIs tabdeeli ke baad \`app.js\` mein syntax error aa jayega:\n\`${syntaxErr.message}\`\nFile save nahi ki gayi taake GUI crash na ho.`;
+        }
+        fs.writeFileSync(jsPath, updated, 'utf8');
+        return `✅ **JavaScript Updated Successfully!**\nReplaced in \`public/app.js\`:\n\`${oldStr}\`\n➔ With:\n\`${newStr}\`\n\n*(Browser refresh karein changes dekhne ke liye.)*`;
+      }
+      return `💡 JavaScript edit karne ke liye: \`app.js main change karo: replace "old code" with "new code"\``;
+    }
+
+    return `⚠️ Barah-e-karam target batayein: CSS, HTML, ya JS (e.g. \`css main background color #030712 kardo\` ya \`token cards ki padding 16px 20px kardo\`).`;
   }
 
   static scaffoldWebPage(query) {
