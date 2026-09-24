@@ -540,7 +540,14 @@ class LocalEngine {
 
   static isLocalIntent(query) {
     if (!query || typeof query !== 'string') return false;
-    const q = query.trim().toLowerCase();
+    let q = query.trim().toLowerCase();
+    // Strip leading 'jena', 'hey jena', 'suno jena', 'o jena', etc.
+    q = q.replace(/^(?:hey|suno|o|ai)?\s*jena\b[:,\s]*/i, '').trim();
+
+    // 0. Mode status query & switching
+    if (/\b(online\s+ho\s+ya\s+offline|offline\s+ho\s+ya\s+online|current\s+mode|mode\s+kya\s+hai|status\s+kya\s+hai)\b/i.test(q)) {
+      return 'check_mode';
+    }
 
     // 1. Self-Learning trigger (user is teaching Jena)
     if (/^(seekho|yaad rakho|note karo|learn|memorize)[:\s]/i.test(q)) {
@@ -570,19 +577,21 @@ class LocalEngine {
 
     // 4. GUI & Components Code / Styling Inspection
     if (
-      /(?:code|css|html|styling|styles?)\s+(?:dikhao|batao|kya hai)/i.test(q) ||
+      /(?:code|css|html|styling|styles?|color|background|bg)\s+(?:dikhao|batao|kya hai|kya hay|check karo)/i.test(q) ||
       /(?:components?|elements?)\s*(?:ki\s+list|dikhao|batao|tamam|all)/i.test(q) ||
-      /(?:token\s*cards?|header|navbar|switch|hero|button|input|modal|cards?)\s*(?:ka|ki)?\s*(?:code|css|html|styling|styles?)/i.test(q)
+      /(?:token\s*cards?|header|navbar|switch|hero|button|input|modal|cards?|body|background|bg)\s*(?:ka|ki)?\s*(?:code|css|html|styling|styles?|color|background)?\s*(?:kya hai|kya hay|dikhao|batao|check)/i.test(q) ||
+      /(?:kya\s+color\s+hai|color\s+kya\s+hay|color\s+kya\s+hai)/i.test(q)
     ) {
       return 'inspect_component';
     }
 
-    // 5. GUI & Components Live Styling Mutation (Size, Padding, Borders, Background, Colors, Radius, Text)
+    // 5. GUI & Components Live Styling Mutation (Size, Padding, Borders, Background, Colors, Radius, Width, Height, Margin, Gap)
     if (
-      /(?:token\s*cards?|header|navbar|switch|hero|button|input|modal|cards?|cwd\s*bar)\s*(?:ka|ki|ke|ko)?\s*(?:size|padding|border|color|background|radius|font|height|width|margin|gap).*?(?:badlo|change|kardo|rakho|set|badha|chhota|barha|bara)/i.test(q) ||
-      /(?:badlo|change|set|update)\s+(?:token\s*cards?|header|hero|button|input|modal|cards?)\s*(?:ka|ki)?\s*(?:size|padding|border|color|background|radius)/i.test(q) ||
-      /(?:size\s+badha\s+do|size\s+barha\s+do|size\s+chhota\s+karo|padding\s+barha\s+do|padding\s+badha\s+do|padding\s+chhoti\s+karo)/i.test(q) ||
-      /(?:padding|border|border-radius|radius)\s+[0-9a-z%pxrem\s#]+\s*(?:kardo|rakho|set)/i.test(q)
+      /(?:token\s*cards?|header|navbar|switch|hero|button|input|modal|cards?|cwd\s*bar|body|page|background|screen)\s*(?:ka|ki|ke|ko)?\s*(?:size|padding|border|color|background|bg|radius|font|height|width|margin|gap).*?(?:badlo|change|kardo|rakho|set|badha|chhota|barha|bara|kam|zyada|ghata)/i.test(q) ||
+      /(?:badlo|change|set|update)\s+(?:token\s*cards?|header|hero|button|input|modal|cards?|body|page|background)\s*(?:ka|ki)?\s*(?:size|padding|border|color|background|radius|width|height)/i.test(q) ||
+      /(?:body|background|page|screen)\s*(?:ka|ki|ke)?\s*(?:color|background|bg)?\s*(?:black|white|dark|cyan|green|purple|red|blue|gray|#|[a-z]+)\s*(?:kardo|rakho|set|badlo)/i.test(q) ||
+      /(?:size|padding|width|height|border|margin)\s*(?:badha|barha|chhota|kam|zyada|ghata)/i.test(q) ||
+      /(?:padding|border|border-radius|radius|width|height|background|color)\s+[0-9a-z%pxrem\s#]+\s*(?:kardo|rakho|set)/i.test(q)
     ) {
       return 'modify_component';
     }
@@ -686,6 +695,18 @@ class LocalEngine {
     switch (intent) {
       case 'teach':
         return this.learnFromInput(query);
+      case 'check_mode': {
+        const cfg = ConfigManager.load();
+        const curMode = cfg.mode || 'online';
+        const curProvider = cfg.activeProvider || 'groq';
+        const curModel = cfg.activeModel || 'qwen/qwen3.8-27b';
+        return `🤖 **Jena Operating Status & Mode Report:**\n\n` +
+               `- 🌐 **Active Mode:** **${curMode.toUpperCase()}**\n` +
+               `- ⚙️ **Active Provider:** \`${curProvider}\`\n` +
+               `- 🧠 **Active Model:** \`${curModel}\`\n` +
+               `- ⚡ **Local Core:** Active (Termux Linux • Zero Token Usage)\n\n` +
+               `*Aap upar header switch se ya \`online mode\` / \`offline mode\` bol kar switch kar sakte hain.*`;
+      }
       case 'reload_page':
         return '🔄 **Page Refresh:** Browser page refresh initiate ho raha hai...';
       case 'show_memory':
@@ -1183,6 +1204,14 @@ class LocalEngine {
       htmlSearch: '<div class="modal-card',
       htmlEndSearch: '</div>\n    </div>',
       desc: 'Token Allowance Budget Edit Popup Modal'
+    },
+    body: {
+      names: ['body', 'page background', 'background', 'bg color', 'page color', 'page', 'screen', 'index.html'],
+      selector: 'body',
+      file: 'public/style.css',
+      htmlSearch: '<body',
+      htmlEndSearch: '</body>',
+      desc: 'Application Body, Background & Base Page View'
     }
   };
 
@@ -1194,6 +1223,7 @@ class LocalEngine {
         if (q.includes(name)) return { key, ...comp };
       }
     }
+    if (q.includes('body') || q.includes('background') || q.includes('page background') || q.includes('bg color')) return { key: 'body', ...this.COMPONENT_REGISTRY.body };
     if (q.includes('token') || q.includes('cards')) return { key: 'token_card', ...this.COMPONENT_REGISTRY.token_card };
     if (q.includes('header') || q.includes('nav')) return { key: 'header', ...this.COMPONENT_REGISTRY.header };
     if (q.includes('input') || q.includes('textarea')) return { key: 'input_wrapper', ...this.COMPONENT_REGISTRY.input_wrapper };
@@ -1269,9 +1299,10 @@ class LocalEngine {
     const htmlPath = path.join(PUBLIC_DIR, 'index.html');
     let cssCode = 'CSS rule nahi mili.';
     let htmlCode = 'HTML snippet nahi mila.';
+    let cssContent = '';
 
     if (fs.existsSync(cssPath)) {
-      const cssContent = fs.readFileSync(cssPath, 'utf8');
+      cssContent = fs.readFileSync(cssPath, 'utf8');
       const rule = this.extractCssRule(cssContent, comp.selector);
       if (rule) cssCode = rule;
     }
@@ -1291,6 +1322,24 @@ class LocalEngine {
       }
     }
 
+    if (comp.key === 'body') {
+      const bgMatch = cssContent.match(/--bg-primary:\s*([^;]+);/i);
+      const textMatch = cssContent.match(/--text-primary:\s*([^;]+);/i);
+      const currentBg = bgMatch ? bgMatch[1].trim() : '#0a0d14';
+      const currentText = textMatch ? textMatch[1].trim() : '#f8fafc';
+      return (
+        `🎨 **Application Body & Background Inspection:**\n\n` +
+        `- 🖌️ **Current Background Color:** \`${currentBg}\` (Variable: \`--bg-primary\`)\n` +
+        `- 🔤 **Current Text Color:** \`${currentText}\` (Variable: \`--text-primary\`)\n` +
+        `- 📌 **CSS Selector:** \`body\` (File: \`public/style.css\`)\n\n` +
+        `\`\`\`css\n${cssCode}\n\`\`\`\n\n` +
+        `💡 **Background ya Color Tabdeel Karne Ki Misalein:**\n` +
+        `- \`body ka color black kardo\` ya \`background black kardo\`\n` +
+        `- \`body ka background #000000 kardo\`\n` +
+        `- \`body ka text color white kardo\``
+      );
+    }
+
     return (
       `🔍 **Component Inspection: \`${comp.desc}\`**\n\n` +
       `📌 **CSS Selector:** \`${comp.selector}\` (File: \`public/style.css\`)\n` +
@@ -1299,6 +1348,7 @@ class LocalEngine {
       `\`\`\`html\n${htmlCode}\n\`\`\`\n\n` +
       `🛠️ **Is component ko tabdeel karne ke liye misalein:**\n` +
       `- \`${comp.names[0]} ki padding 16px 20px kardo\`\n` +
+      `- \`${comp.names[0]} ki width 20% kam kardo\`\n` +
       `- \`${comp.names[0]} ka border 2px solid cyan kardo\`\n` +
       `- \`${comp.names[0]} ka background #0f172a kardo\`\n` +
       `- \`${comp.names[0]} ki border radius 16px kardo\``
@@ -1340,6 +1390,106 @@ class LocalEngine {
     const cssPath = path.join(PUBLIC_DIR, 'style.css');
     if (!fs.existsSync(cssPath)) return `❌ Error: \`${cssPath}\` mojood nahi hai.`;
     let cssContent = fs.readFileSync(cssPath, 'utf8');
+
+    // 0. Special Handling for Body & Page Background
+    if (comp.key === 'body') {
+      const colorValMatch = q.match(/(#[0-9a-fA-F]{3,8}|rgba?\([^)]+\))/);
+      let bgVal = colorValMatch ? colorValMatch[1].trim() : null;
+      if (!bgVal) {
+        const colorNames = {
+          black: '#000000', kala: '#000000',
+          white: '#ffffff', safed: '#ffffff',
+          dark: '#0a0d14',
+          cyan: '#00d2ff',
+          blue: '#3a7bd5', neela: '#3a7bd5',
+          green: '#10b981', sabz: '#10b981',
+          purple: '#9d4edd', jamni: '#9d4edd',
+          red: '#ef4444', surkh: '#ef4444', lal: '#ef4444',
+          gray: '#64748b'
+        };
+        for (const [cName, hex] of Object.entries(colorNames)) {
+          if (new RegExp(`\\b${cName}\\b`, 'i').test(q)) {
+            bgVal = hex;
+            break;
+          }
+        }
+      }
+
+      if (bgVal) {
+        const isTextColor = /(?:text\s*color|font\s*color)\s+/i.test(q) && !/background|bg/i.test(q);
+        if (isTextColor) {
+          const res = this.updateCssRule(cssContent, 'body', 'color', bgVal);
+          if (res.success) {
+            fs.writeFileSync(cssPath, res.updatedCss, 'utf8');
+            return `✅ **Body Ka Text Color Updated!**\n` +
+                   `- 🎯 **Selector:** \`body\`\n` +
+                   `- 🎨 **New Text Color:** \`${bgVal}\`\n\n` +
+                   `⚡ **Dynamic Hot-Reload Applied:** Browser styling live update ho chuki hai!`;
+          }
+        } else {
+          let updatedCss = cssContent;
+          const varRegex = /(--bg-primary:\s*)([^;]+)(;)/i;
+          if (varRegex.test(updatedCss)) {
+            updatedCss = updatedCss.replace(varRegex, `$1${bgVal}$3`);
+          }
+          const bodyBgRes = this.updateCssRule(updatedCss, 'body', 'background-color', bgVal);
+          if (bodyBgRes.success) updatedCss = bodyBgRes.updatedCss;
+          if (bgVal === '#000000') {
+            const bgImgRes = this.updateCssRule(updatedCss, 'body', 'background-image', 'none');
+            if (bgImgRes.success) updatedCss = bgImgRes.updatedCss;
+          }
+          fs.writeFileSync(cssPath, updatedCss, 'utf8');
+          return `✅ **Application Body Ka Background Color Updated!**\n` +
+                 `- 🎯 **Selector:** \`body\` / \`:root\`\n` +
+                 `- 🎨 **New Background Color:** \`${bgVal}\`\n\n` +
+                 `⚡ **Dynamic Hot-Reload Applied:** Browser styling live update ho chuki hai!`;
+        }
+      }
+    }
+
+    // 0.5 Check for width change (e.g. "token cards ki width 20% kam kardo", "width 80%", "width barhao")
+    const widthMatch = q.match(/(?:width|chaudai)\s+(?:([0-9]+%|[0-9]+px|[0-9]+rem)\s+)?(kam|ghata|chhoti|reduce|badha|barha|zyada|increase|kardo|rakho|set)/i) ||
+                       q.match(/(?:width|chaudai)\s+([0-9a-z%pxrem!]+)/i);
+    if (widthMatch) {
+      let widthVal = (widthMatch[1] || widthMatch[2])?.trim();
+      const pctMatch = q.match(/([0-9]+)%\s*(?:kam|ghata)/i);
+      if (pctMatch) {
+        const reduction = parseInt(pctMatch[1], 10);
+        widthVal = `${Math.max(10, 100 - reduction)}%`;
+      } else if (!widthVal || /kam|ghata|chhoti|reduce/i.test(widthVal)) {
+        widthVal = '80%';
+      } else if (/badha|barha|zyada|increase/i.test(widthVal)) {
+        widthVal = '100%';
+      }
+
+      const res = this.updateCssRule(cssContent, comp.selector, 'max-width', widthVal);
+      if (res.success) {
+        let updated = res.updatedCss;
+        if (comp.key === 'token_card') {
+          const marginRes = this.updateCssRule(updated, comp.selector, 'margin', '0 auto');
+          if (marginRes.success) updated = marginRes.updatedCss;
+        }
+        fs.writeFileSync(cssPath, updated, 'utf8');
+        return `✅ **${comp.desc} Ki Width Updated!**\n` +
+               `- 🎯 **Selector:** \`${comp.selector}\`\n` +
+               `- 📏 **New Max-Width:** \`${widthVal}\`${res.oldValue ? ` (Previous: \`${res.oldValue}\`)` : ''}\n\n` +
+               `⚡ **Dynamic Hot-Reload Applied:** Browser styling live update ho chuki hai!`;
+      }
+    }
+
+    // 0.6 Check for height change
+    const heightMatch = q.match(/height\s+([0-9a-z%pxrem!]+?)(?:\s+kardo|\s+rakho|\s+set|$)/i);
+    if (heightMatch) {
+      const heightVal = heightMatch[1].trim();
+      const res = this.updateCssRule(cssContent, comp.selector, 'height', heightVal);
+      if (res.success) {
+        fs.writeFileSync(cssPath, res.updatedCss, 'utf8');
+        return `✅ **${comp.desc} Ki Height Updated!**\n` +
+               `- 🎯 **Selector:** \`${comp.selector}\`\n` +
+               `- 📏 **New Height:** \`${heightVal}\`${res.oldValue ? ` (Previous: \`${res.oldValue}\`)` : ''}\n\n` +
+               `⚡ **Dynamic Hot-Reload Applied:** Browser styling live update ho chuki hai!`;
+      }
+    }
 
     // 1. Check for padding change
     const padMatch = q.match(/padding\s+([0-9a-z\s%pxrem!]+?)(?:\s+kardo|\s+rakho|\s+set|$)/i) ||
@@ -1404,7 +1554,11 @@ class LocalEngine {
     const bgMatch = q.match(/(?:background(?:-color)?|bg)\s+([^\n;]+?)(?:\s+kardo|\s+rakho|\s+set|$)/i);
     if (bgMatch) {
       let bgVal = bgMatch[1].trim();
-      const colorMap = { cyan: '#00d2ff', green: '#10b981', purple: '#9d4edd', red: '#ef4444', dark: '#0a0d14', black: '#000000', white: '#ffffff' };
+      const colorMap = {
+        cyan: '#00d2ff', green: '#10b981', sabz: '#10b981', purple: '#9d4edd', jamni: '#9d4edd',
+        red: '#ef4444', surkh: '#ef4444', lal: '#ef4444', blue: '#3a7bd5', neela: '#3a7bd5',
+        dark: '#0a0d14', black: '#000000', kala: '#000000', white: '#ffffff', safed: '#ffffff', gray: '#64748b'
+      };
       if (colorMap[bgVal.toLowerCase()]) bgVal = colorMap[bgVal.toLowerCase()];
       const res = this.updateCssRule(cssContent, comp.selector, 'background', bgVal);
       if (res.success) {
@@ -1420,7 +1574,11 @@ class LocalEngine {
     const colorMatch = q.match(/(?:text\s*color|color)\s+([^\n;]+?)(?:\s+kardo|\s+rakho|\s+set|$)/i);
     if (colorMatch) {
       let cVal = colorMatch[1].trim();
-      const colorMap = { cyan: '#00d2ff', green: '#10b981', purple: '#9d4edd', red: '#ef4444', white: '#ffffff', black: '#000000' };
+      const colorMap = {
+        cyan: '#00d2ff', green: '#10b981', sabz: '#10b981', purple: '#9d4edd', jamni: '#9d4edd',
+        red: '#ef4444', surkh: '#ef4444', lal: '#ef4444', blue: '#3a7bd5', neela: '#3a7bd5',
+        white: '#ffffff', safed: '#ffffff', black: '#000000', kala: '#000000', gray: '#64748b'
+      };
       if (colorMap[cVal.toLowerCase()]) cVal = colorMap[cVal.toLowerCase()];
       const res = this.updateCssRule(cssContent, comp.selector, 'color', cVal);
       if (res.success) {

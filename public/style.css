@@ -1,5 +1,5 @@
 :root {
-  --bg-primary: #f4d6c66;
+  --bg-primary: #000000;
   --bg-surface: #101522;
   --bg-card: rgba(18, 24, 38, 0.7);
   --bg-card-hover: rgba(28, 36, 56, 0.85);
@@ -38,10 +38,9 @@
 
 body {
   font-family: var(--font-main);
-  background-color: var(--bg-primary);
+  background-color: #000000;
   background-image: 
-    radial-gradient(circle at 15% 15%, rgba(0, 210, 255, 0.05) 0%, transparent 45%),
-    radial-gradient(circle at 85% 85%, rgba(157, 78, 221, 0.05) 0%, transparent 50%);
+    none;
   color: var(--text-primary);
   height: 100vh;
   height: 100dvh;
@@ -174,6 +173,8 @@ body {
   flex-direction: column;
   transition: all 0.2s ease;
   cursor: default;
+  max-width: 80%;
+  margin: 0 auto;
 }
 
 .token-card#cardAllowance {
