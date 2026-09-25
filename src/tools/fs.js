@@ -177,7 +177,8 @@ class FsTools {
     target = target.replace(/^(?:hey|suno|o|ai)?\s*jena\b[:,\s]*/i, '').trim();
     target = target.replace(/^(?:ls|dir|files\s+dikhao|list\s+files|folder\s+mein\s+kya|directory\s+check|list)\s*/i, '').trim();
     target = target.replace(/\s*(?:folder|directory)?\s*(?:list\s+karo|list\s+kardo|list\s+karein|dikhao|check).*$/i, '').trim();
-    target = target.replace(/\s+(?:folder|directory)\s*$/i, '').trim();
+    target = target.replace(/\s*(?:k[aei]?|ke|k)\s+(?:folders?|files?|directories|directory)\s*$/i, '').trim();
+    target = target.replace(/\s+(?:folder|folders|directory|directories|files?)\s*$/i, '').trim();
 
     const dir = target ? this.resolvePath(target, currentDir) : currentDir;
 

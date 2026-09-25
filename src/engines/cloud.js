@@ -33,19 +33,27 @@ class CloudEngine {
     for (let i = 0; i < keys.length; i++) {
       const apiKey = keys[i];
       try {
+        let result;
         if (provider === 'gemini' || providerConfig.type === 'gemini') {
-          const result = await this.callGemini(model, apiKey, prompt, temp, maxTokens);
-          const elapsedMs = Date.now() - startTime;
-          const tokenStats = TokenTracker.recordUsage(result.promptTokens, result.completionTokens, elapsedMs);
-          return { text: result.text, stats: tokenStats, provider, model };
+          result = await this.callGemini(model, apiKey, prompt, temp, maxTokens);
         } else {
           // Groq, OpenAI, or custom OpenAI-compatible endpoint
           const endpoint = providerConfig.endpoint || DEFAULT_PROVIDERS.groq.endpoint;
-          const result = await this.callOpenAiCompatible(endpoint, model, apiKey, prompt, temp, maxTokens);
-          const elapsedMs = Date.now() - startTime;
-          const tokenStats = TokenTracker.recordUsage(result.promptTokens, result.completionTokens, elapsedMs);
-          return { text: result.text, stats: tokenStats, provider, model };
+          result = await this.callOpenAiCompatible(endpoint, model, apiKey, prompt, temp, maxTokens);
         }
+
+        const distilled = this.distillOnlineKnowledge(result.text, prompt);
+        const elapsedMs = Date.now() - startTime;
+        const tokenStats = TokenTracker.recordUsage(result.promptTokens, result.completionTokens, elapsedMs);
+
+        return {
+          text: distilled.text,
+          stats: tokenStats,
+          provider,
+          model,
+          distilledOp: distilled.distilledOp,
+          distilledFact: distilled.distilledFact
+        };
       } catch (err) {
         lastError = err;
         // If there are more keys, rotate to next key
@@ -55,6 +63,60 @@ class CloudEngine {
       }
     }
     throw lastError || new Error('Request failed across all configured API keys.');
+  }
+
+  static distillOnlineKnowledge(text, userPrompt) {
+    let cleanText = text || '';
+    let distilledOp = null;
+    let distilledFact = null;
+
+    // 1. Tag-based operation distillation: [LEARNED_OP: trigger | command | description]
+    const opRegex = /\[LEARNED_OP:\s*([^|\]]+?)\s*\|\s*([^|\]]+?)\s*\|\s*([^\]]+?)\s*\]/i;
+    const opMatch = cleanText.match(opRegex);
+    if (opMatch) {
+      const trigger = opMatch[1].trim();
+      const command = opMatch[2].trim();
+      const desc = opMatch[3].trim();
+      if (trigger && command) {
+        distilledOp = MemoryManager.addOperation(null, trigger, command, desc);
+        cleanText = cleanText.replace(opMatch[0], '').trim();
+      }
+    }
+
+    // 2. Tag-based fact distillation: [LEARNED_FACT: topic | fact]
+    const factRegex = /\[LEARNED_FACT:\s*([^|\]]+?)\s*\|\s*([^\]]+?)\s*\]/i;
+    const factMatch = cleanText.match(factRegex);
+    if (factMatch) {
+      const topic = factMatch[1].trim();
+      const fact = factMatch[2].trim();
+      if (fact) {
+        distilledFact = MemoryManager.addFact(fact, topic);
+        cleanText = cleanText.replace(factMatch[0], '').trim();
+      }
+    }
+
+    // 3. Fallback Heuristic distillation:
+    if (!distilledOp && /(?:seekho|learn|yaad\s+rakho|command\s+banao|script\s+banao|kaise\s+karein|how\s+to)/i.test(userPrompt)) {
+      const codeBlockMatch = cleanText.match(/```(?:bash|sh|shell)?\s*\n([\s\S]+?)\n```/);
+      if (codeBlockMatch) {
+        const candidateCmd = codeBlockMatch[1].trim();
+        if (!candidateCmd.includes('\n') && candidateCmd.length < 200 && !candidateCmd.startsWith('#')) {
+          const trigger = userPrompt.replace(/^(?:hey|suno)?\s*jena\b[:,\s]*/i, '').replace(/^(?:seekho|learn|command\s+banao|script\s+banao|kaise\s+karein)\s*/i, '').trim();
+          if (trigger.length >= 3) {
+            distilledOp = MemoryManager.addOperation(null, trigger, candidateCmd, `Learned via Cloud AI: ${trigger}`);
+          }
+        }
+      }
+    }
+
+    // Append friendly notification if something was learned
+    if (distilledOp) {
+      cleanText += `\n\n*(💡 **Offline Skill Learned:** Jena ne is process ko apni offline memory \`~/.jena/memory.json\` mein save kar liya hai! Ab aap offline 0 tokens par \`run op ${distilledOp.trigger}\` ya \`${distilledOp.trigger}\` likh kar isay chala sakte hain.)*`;
+    } else if (distilledFact) {
+      cleanText += `\n\n*(💡 **Fact Remembered:** Jena ne yeh maloomat apni offline memory \`~/.jena/memory.json\` mein save kar li hai.)*`;
+    }
+
+    return { text: cleanText, distilledOp, distilledFact };
   }
 
   static getEffectiveSystemPrompt() {

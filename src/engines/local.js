@@ -51,11 +51,21 @@ class LocalEngine {
 
     // 2b. Memory Facts / User Profile Query
     if (
-      /\b(?:main\s+k(?:on|aun|o?un)\s+h[ou]+n|who\s+am\s+i|mera\s+naam|mere\s+naam|mere\s+(?:bete|bachay|bachon|family|khandan|ghar|bare|mutalliq)|mujhe\s+jaanti\s+ho|mera\s+intro)\b/i.test(q) ||
+      /\b(?:main\s+k(?:on|aun|o?un)\s+h[ou]+n|who\s+am\s+i|mera\s+naam|mere\s+naam|mere\s+(?:bete|bachay|bachon|family|khandan|ghar|bare|mutalliq)|mujhe\s+jaanti\s+ho|mera\s+intro|user_name|username|user_namr)\b/i.test(q) ||
       /(?:kya\s+yaad\s+hai|kya\s+yaad\s+hay)\s+(?:mere|apne)?/i.test(q) ||
-      /(?:naam\s+kya\s+hai|naam\s+kya\s+hay)/i.test(q)
+      /(?:naam\s+kya\s+hai|naam\s+kya\s+hay|user_name|username|user\s+ka\s+naam)/i.test(q)
     ) {
       return 'query_facts';
+    }
+
+    // 2c. Capabilities / What can you do
+    if (
+      /(?:tum\s+)?kya\s+kya\s+kar\s+sakti\s+ho/i.test(q) ||
+      /(?:apne\s+)?(?:features|capabilities|skills|kaam|salahiyat|powers)\s*(?:batao|dikhao|list|kya\s+hain)/i.test(q) ||
+      /^(?:what\s+can\s+you\s+do|capabilities|features|skills|help|madad)\b/i.test(q) ||
+      /(?:madad\s+chahiye|guide\s+karo|kya\s+karsakti\s+ho)/i.test(q)
+    ) {
+      return 'capabilities';
     }
 
     // 3. Registered Self-Learned Local Operations check
@@ -324,6 +334,8 @@ class LocalEngine {
     }
 
     switch (intent) {
+      case 'capabilities':
+        return this.getCapabilities();
       case 'git_op':
         return await GitTools.executeGitOperation(query, path.join(HOME_DIR, 'jena'));
       case 'torch_on':
@@ -521,7 +533,7 @@ class LocalEngine {
     const q = (query || '').toLowerCase();
     const matches = [];
 
-    const asksAboutUser = /\b(?:main\s+k(?:on|aun|o?un)|who\s+am\s+i|mera\s+naam|mere\s+naam|mera\s+intro)\b/i.test(q);
+    const asksAboutUser = /\b(?:main\s+k(?:on|aun|o?un)|who\s+am\s+i|mera\s+naam|mere\s+naam|mera\s+intro|user_name|username|user_namr|user\s+ka\s+naam)\b/i.test(q);
     const asksAboutSon = /\b(?:beta|bete|bacha|bachay|son|child|saifullah)\b/i.test(q);
 
     facts.forEach(f => {
@@ -546,6 +558,61 @@ class LocalEngine {
     });
     res += `\n*(Yeh maloomat offline memory \`~/.jena/memory.json\` se direct 0 tokens par retrieve hui hain.)*`;
     return res;
+  }
+
+  static getCapabilities() {
+    return (
+      `🧚‍♀️ **Main Jena hoon (v0.3) — Aapki Autonomous Hybrid AI Agent!**\n\n` +
+      `Main Termux / Linux environment ke liye specifically designed hoon aur bina kisi external package ke standard Node.js par chalti hoon. Mere do operational modes hain: **⚡ 100% Offline (0 Tokens)** aur **🌐 High-Speed Cloud AI**.\n\n` +
+      `Meri mukammal capabilities aur tasks darj zail hain:\n\n` +
+      `---\n\n` +
+      `### 1. 📱 Mobile Hardware & Camera Controls (Offline • 0 Tokens)\n` +
+      `- 🔦 **Torch / Flashlight:**\n` +
+      `  * \`torch on karo\` ya \`flashlight jalao\` (Mobile ki torch ON karna)\n` +
+      `  * \`torch off karo\` ya \`torch band karo\` (Torch OFF karna)\n` +
+      `- 📸 **Camera & Selfie (Android Gallery Auto-Save):**\n` +
+      `  * \`front camera kholo aor selfie lo\` ya \`selfie lo\` (Front camera ID: 1 se selfie capture)\n` +
+      `  * \`back camera kholo aor photo lo\` ya \`photo lo\` (Rear camera ID: 0 se photo capture)\n` +
+      `  * *Auto-Sync:* Photos direct \`/storage/emulated/0/DCIM/Camera/\` mein save hoti hain aur \`termux-media-scan\` ke zariye Android Gallery / Google Photos mein foran add ho jati hain.\n\n` +
+      `---\n\n` +
+      `### 2. 🧠 Self-Learning & Online-to-Offline Auto-Distillation\n` +
+      `- 🔄 **Online-to-Offline Distillation:** Jab aap Cloud AI se koi command ya process seekhte hain, main us executable step ko automatically apni offline memory (\`~/.jena/memory.json\`) mein save kar leti hoon taake baad mein bina internet 0 tokens par chal sake.\n` +
+      `- ✍️ **Custom Operation Sikhana:**\n` +
+      `  * \`seekho: jab main kahoon "system status" to command run karo "uptime && free -h"\`\n` +
+      `  * \`seekho command "myip" = curl ifconfig.me\`\n` +
+      `  * \`seekho: mera naam AbuSaif hay\` (Personal facts & preferences)\n` +
+      `- 📋 **Saved Memory Check:** \`apne operations dikhao\` ya \`apni memory dikhao\`\n\n` +
+      `---\n\n` +
+      `### 3. 📦 Filesystem & Cross-Storage Transfer (Phone ↔ Termux)\n` +
+      `- 📂 **Navigation:** \`pwd\` (current path), \`cd <folder>\`, \`ls\`, \`tree\`, \`find <file>\`, \`cat <file>\`.\n` +
+      `- 🚚 **Cross-Storage Copy & Move (EXDEV Safe):**\n` +
+      `  * \`phone se test.txt home main copy karo\`\n` +
+      `  * \`termux se public folder phone main move kardo\`\n` +
+      `  * \`public folder ko phone main copy karo\`\n` +
+      `  * \`cp -r <src> <dest>\` / \`mv <src> <dest>\`\n` +
+      `  * Shortcuts: \`downloads\`, \`dcim\`, \`pictures\`, \`phone\` (\`termux-to-phone\`), \`shared\`.\n\n` +
+      `---\n\n` +
+      `### 4. 💻 Safe Terminal Execution & System Health\n` +
+      `- ⚡ **Terminal Execution:** \`terminal: pkg install -y <pkg>\` ya \`command: git pull\` (Auto-yes safe execution).\n` +
+      `- 🔋 **Device Health:** \`battery status\`, \`ram check karo\`, \`storage check karo\`, \`specs\`.\n` +
+      `- 🧮 **Instant Math:** \`hisab karo 1500 * 25\`.\n\n` +
+      `---\n\n` +
+      `### 5. 🎨 GUI Self-Inspection & Live Mutation\n` +
+      `- 🔍 \`header components read karo\`, \`explain style.css\`, \`apne index.html ko explain karo\`.\n` +
+      `- 🎨 \`css main background color #0b0f19 kardo\` (Live hot-reload).\n` +
+      `- 🛠️ **Browser Code Editor:** \`http://localhost:8080\` par Monaco-style full code editor aur file explorer.\n\n` +
+      `---\n\n` +
+      `### 6. 🏗️ Offline Full-Stack Web Scaffolding\n` +
+      `- \`webpage banao portfolio <name>\`, \`landing page banao\`, \`dashboard webpage banao\`, \`nodejs server banao\`.\n\n` +
+      `---\n\n` +
+      `### 7. 🐙 Git & GitHub Automation\n` +
+      `- \`git status\`, \`git diff\`, \`git log\`, \`git commit push: "mera message"\`.\n\n` +
+      `---\n\n` +
+      `### 8. 🌐 High-Speed Online Cloud AI\n` +
+      `- Groq (Qwen 27B / Llama 3.3 70B), Gemini Flash, OpenAI ke sath complex coding, debugging aur deep reasoning.\n` +
+      `- Multi-key automatic rotation aur real-time tokens speed meter.\n\n` +
+      `*(Aap kisi bhi waqt mujh se yeh tasks karwane ke liye bas command likhein!)*`
+    );
   }
 
   static changeDirectory(query) {
