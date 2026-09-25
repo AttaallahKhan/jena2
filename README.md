@@ -11,6 +11,7 @@ Jena v0.3 ko ground zero se aik ultra-minimalist, lightweight aur powerful archi
    - **Engines (`src/engines/`):**
      - `local.js` : Deterministic offline intent classifier & dispatcher (0 tokens).
      - `cloud.js` : High-speed streaming AI engine (Groq, Gemini, OpenAI) + Connection Tester.
+     - `evolution.js` : Autonomous Internal Evolution Engineer (Mentor-Student Auto-Distillation & Self-Healing).
    - **Pluggable Tools (`src/tools/`):**
      - `fs.js` : Termux filesystem tools, EXDEV-safe cross-storage copy/move (Termux ↔ Phone).
      - `terminal.js` : Safe bash execution with automated `-y` flag handling.

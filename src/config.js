@@ -404,15 +404,20 @@ class MemoryManager {
 
   static findOperation(query) {
     if (!query || typeof query !== 'string') return null;
-    const q = query.trim().toLowerCase();
+    let q = query.trim().toLowerCase();
+    q = q.replace(/^(?:run\s+op\s+|op\s+|run\s+|chalao\s+)/i, '').trim();
     const mem = this.load();
 
-    return mem.learned_operations.find(o => {
-      const trig = o.trigger.toLowerCase();
-      if (q === trig) return true;
-      if (q.startsWith(trig + ' ')) return true;
-      const escaped = trig.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      return new RegExp(`(^|\\s)${escaped}($|\\s)`).test(q);
+    return (mem.learned_operations || []).find(o => {
+      if (!o || !o.trigger) return false;
+      const triggers = o.trigger.toLowerCase().split('|').map(t => t.trim()).filter(Boolean);
+      for (const trig of triggers) {
+        if (q === trig) return true;
+        if (q.startsWith(trig + ' ')) return true;
+        const escaped = trig.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        if (new RegExp(`(^|\\s)${escaped}($|\\s)`).test(q)) return true;
+      }
+      return false;
     });
   }
 }

@@ -9,6 +9,7 @@ const { ConfigManager, MemoryManager, TokenTracker, DEFAULT_PROVIDERS } = requir
 const { LogManager } = require('../logger');
 const { JENA_SYSTEM_PROMPT } = require('../persona');
 const { LocalEngine } = require('./local');
+const { EvolutionEngine } = require('./evolution');
 
 class CloudEngine {
   static async generate(prompt, options = {}) {
@@ -67,53 +68,21 @@ class CloudEngine {
 
   static distillOnlineKnowledge(text, userPrompt) {
     let cleanText = text || '';
+    const event = EvolutionEngine.distillOnlineKnowledge(userPrompt, cleanText, LocalEngine.getCwd());
     let distilledOp = null;
     let distilledFact = null;
 
-    // 1. Tag-based operation distillation: [LEARNED_OP: trigger | command | description]
-    const opRegex = /\[LEARNED_OP:\s*([^|\]]+?)\s*\|\s*([^|\]]+?)\s*\|\s*([^\]]+?)\s*\]/i;
-    const opMatch = cleanText.match(opRegex);
-    if (opMatch) {
-      const trigger = opMatch[1].trim();
-      const command = opMatch[2].trim();
-      const desc = opMatch[3].trim();
-      if (trigger && command) {
-        distilledOp = MemoryManager.addOperation(null, trigger, command, desc);
-        cleanText = cleanText.replace(opMatch[0], '').trim();
+    if (event) {
+      if (event.type === 'OPERATION_DISTILLED') {
+        distilledOp = event;
+        // Clean tag if present
+        cleanText = cleanText.replace(/\[LEARNED_OP:\s*[^\]]+?\]/i, '').trim();
+        cleanText += `\n\n*(💡 **Offline Skill Learned (via Internal Engineer):** Jena ne is process ko apni offline memory \`~/.jena/memory.json\` mein save kar liya hai! Ab aap offline 0 tokens par \`${event.trigger.split('|')[0]}\` likh kar isay chala sakte hain.)*`;
+      } else if (event.type === 'FACT_DISTILLED') {
+        distilledFact = event;
+        cleanText = cleanText.replace(/\[LEARNED_FACT:\s*[^\]]+?\]/i, '').trim();
+        cleanText += `\n\n*(💡 **Fact Remembered (via Internal Engineer):** Jena ne yeh maloomat apni offline memory \`~/.jena/memory.json\` mein save kar li hai.)*`;
       }
-    }
-
-    // 2. Tag-based fact distillation: [LEARNED_FACT: topic | fact]
-    const factRegex = /\[LEARNED_FACT:\s*([^|\]]+?)\s*\|\s*([^\]]+?)\s*\]/i;
-    const factMatch = cleanText.match(factRegex);
-    if (factMatch) {
-      const topic = factMatch[1].trim();
-      const fact = factMatch[2].trim();
-      if (fact) {
-        distilledFact = MemoryManager.addFact(fact, topic);
-        cleanText = cleanText.replace(factMatch[0], '').trim();
-      }
-    }
-
-    // 3. Fallback Heuristic distillation:
-    if (!distilledOp && /(?:seekho|learn|yaad\s+rakho|command\s+banao|script\s+banao|kaise\s+karein|how\s+to)/i.test(userPrompt)) {
-      const codeBlockMatch = cleanText.match(/```(?:bash|sh|shell)?\s*\n([\s\S]+?)\n```/);
-      if (codeBlockMatch) {
-        const candidateCmd = codeBlockMatch[1].trim();
-        if (!candidateCmd.includes('\n') && candidateCmd.length < 200 && !candidateCmd.startsWith('#')) {
-          const trigger = userPrompt.replace(/^(?:hey|suno)?\s*jena\b[:,\s]*/i, '').replace(/^(?:seekho|learn|command\s+banao|script\s+banao|kaise\s+karein)\s*/i, '').trim();
-          if (trigger.length >= 3) {
-            distilledOp = MemoryManager.addOperation(null, trigger, candidateCmd, `Learned via Cloud AI: ${trigger}`);
-          }
-        }
-      }
-    }
-
-    // Append friendly notification if something was learned
-    if (distilledOp) {
-      cleanText += `\n\n*(💡 **Offline Skill Learned:** Jena ne is process ko apni offline memory \`~/.jena/memory.json\` mein save kar liya hai! Ab aap offline 0 tokens par \`run op ${distilledOp.trigger}\` ya \`${distilledOp.trigger}\` likh kar isay chala sakte hain.)*`;
-    } else if (distilledFact) {
-      cleanText += `\n\n*(💡 **Fact Remembered:** Jena ne yeh maloomat apni offline memory \`~/.jena/memory.json\` mein save kar li hai.)*`;
     }
 
     return { text: cleanText, distilledOp, distilledFact };

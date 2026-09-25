@@ -14,6 +14,7 @@ const { GitTools } = require('../tools/git');
 const { GuiTools } = require('../tools/gui');
 const { ScaffoldTools } = require('../tools/scaffold');
 const { DeviceTools } = require('../tools/device');
+const { EvolutionEngine } = require('./evolution');
 
 class LocalEngine {
   static currentDir = HOME_DIR;
@@ -40,8 +41,10 @@ class LocalEngine {
       return 'teach';
     }
 
-    // 2. Memory query
+    // 2. Memory & Evolution status query
     if (
+      /(?:tum\s+ne\s+)?(?:naya\s+)?kya\s+seekha\s*(?:hai|hay)?/i.test(q) ||
+      /(?:evolution\s+report|evolution\s+status|engineer\s+status|learning\s+status|evolution)/i.test(q) ||
       /(?:apne\s+|apni\s+)?(?:operations|memory|skills|commands)\s*(?:dikhao|check|batao|list|show)\b/i.test(q) ||
       /^(?:kya\s+seekha\s+hai|kya\s+yaad\s+hai|yaad\s+kya\s+hai|memory\s+check|show\s+memory|show\s+operations|learned\s+operations|learned\s+commands|operations|memory)\b/i.test(q) ||
       q === 'memory' || q === 'operations'
@@ -495,32 +498,7 @@ class LocalEngine {
   }
 
   static showMemory() {
-    const mem = MemoryManager.load();
-    const opsCount = mem.learned_operations.length;
-    const factsCount = mem.learned_facts.length;
-
-    let res = `🧠 **Jena Ki Self-Learned Memory & Operations:**\n\n`;
-
-    res += `⚡ **Self-Learned Offline Operations (${opsCount}):**\n`;
-    if (opsCount === 0) {
-      res += `- *Koi custom operation registered nahi hai.*\n`;
-    } else {
-      mem.learned_operations.forEach(o => {
-        res += `- 🏷️ **\`${o.trigger}\`** ➔ \`${o.command}\` *(${o.description || 'Custom Op'})*\n`;
-      });
-    }
-
-    res += `\n📌 **Learned Facts & Knowledge (${factsCount}):**\n`;
-    if (factsCount === 0) {
-      res += `- *Koi fact saved nahi hai.*\n`;
-    } else {
-      mem.learned_facts.forEach(f => {
-        res += `- 💡 ${f.fact}\n`;
-      });
-    }
-
-    res += `\n*(Naya operation sikhane ke liye: \`seekho command "myip" = curl ifconfig.me\` ya \`seekho: mera favourite editor vim hai\`)*`;
-    return res;
+    return EvolutionEngine.getEvolutionReport();
   }
 
   static queryMemoryFacts(query) {

@@ -33,6 +33,7 @@ const {
 const { LogManager } = require('./src/logger');
 const { LocalEngine } = require('./src/engines/local');
 const { CloudEngine, TestEngine } = require('./src/engines/cloud');
+const { EvolutionEngine } = require('./src/engines/evolution');
 const { GitTools } = require('./src/tools/git');
 
 // --- SYSTEM SYNC (GLOBAL COMMAND & SHELL ALIASES) ---
@@ -276,7 +277,8 @@ function startServer() {
       return sendJson(200, {
         cwd: LocalEngine.getCwd(),
         facts: mem.learned_facts || [],
-        operations: mem.learned_operations || []
+        operations: mem.learned_operations || [],
+        evolution: EvolutionEngine.loadEvolutionState()
       });
     }
 
@@ -729,6 +731,19 @@ function startServer() {
           text: localResponse,
           stats: { totalTokens: 0, speed: 9999, mode: 'offline', balance: ConfigManager.load().tokens.balance }
         });
+
+        // Autonomous Evolution Audit (Non-Blocking Background Worker)
+        EvolutionEngine.auditAsync({
+          userMessage,
+          assistantReply: localResponse,
+          mode: 'offline',
+          provider: 'offline',
+          model: 'jena-local-core',
+          success: !isErr,
+          error: isErr ? localResponse : null,
+          cwd: LocalEngine.getCwd()
+        });
+
         return res.end();
       }
 
@@ -759,6 +774,17 @@ function startServer() {
           provider: result.provider,
           model: result.model
         });
+
+        // Autonomous Evolution Audit (Non-Blocking Background Worker)
+        EvolutionEngine.auditAsync({
+          userMessage,
+          assistantReply: result.text,
+          mode: 'online',
+          provider: result.provider,
+          model: result.model,
+          success: true,
+          cwd: LocalEngine.getCwd()
+        });
       } catch (err) {
         LogManager.logInteraction({
           userMessage,
@@ -768,6 +794,17 @@ function startServer() {
           model: body.model || 'unknown',
           success: false,
           error: err.message
+        });
+
+        EvolutionEngine.auditAsync({
+          userMessage,
+          assistantReply: `❌ Error: ${err.message}`,
+          mode: 'online',
+          provider: body.provider || 'unknown',
+          model: body.model || 'unknown',
+          success: false,
+          error: err.message,
+          cwd: LocalEngine.getCwd()
         });
 
         sendEvent({
