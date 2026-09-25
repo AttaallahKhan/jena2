@@ -532,6 +532,16 @@ class LocalEngine {
     if (trimmed.startsWith('~/home/')) {
       trimmed = '~/' + trimmed.slice(7);
     }
+    // Check if path refers to storage (e.g. ~/storage/<name> or storage/<name>)
+    const storageMatch = trimmed.match(/^(?:~\/)?storage\/(.+)$/);
+    if (storageMatch) {
+      const sub = storageMatch[1].trim();
+      const phonePath = path.join('/storage/emulated/0', sub);
+      // If folder exists on phone storage, or is a custom folder name
+      if (fs.existsSync(phonePath) || !['dcim', 'downloads', 'movies', 'music', 'pictures', 'shared'].includes(sub.toLowerCase())) {
+        return path.normalize(phonePath);
+      }
+    }
     if (trimmed.startsWith('~/')) {
       return path.join(HOME_DIR, trimmed.slice(2));
     }
@@ -560,6 +570,15 @@ class LocalEngine {
     // 2. Memory query (user asks what Jena knows/learned)
     if (/^(kya seekha hai|kya yaad hai|yaad kya hai|memory check|show memory|learned operations|learned commands)\b/i.test(q) || q === 'memory') {
       return 'show_memory';
+    }
+
+    // 2b. Memory Facts / User Profile Query (e.g. "main kon hun", "mera naam kya hai", "mere bete ka kya naam hay", "mere bare mein kya yaad hai")
+    if (
+      /\b(?:main\s+k(?:on|aun|o?un)\s+h[ou]+n|who\s+am\s+i|mera\s+naam|mere\s+naam|mere\s+(?:bete|bachay|bachon|family|khandan|ghar|bare|mutalliq)|mujhe\s+jaanti\s+ho|mera\s+intro)\b/i.test(q) ||
+      /(?:kya\s+yaad\s+hai|kya\s+yaad\s+hay)\s+(?:mere|apne)?/i.test(q) ||
+      /(?:naam\s+kya\s+hai|naam\s+kya\s+hay)/i.test(q)
+    ) {
+      return 'query_facts';
     }
 
     // 3. Registered Self-Learned Local Operations check
@@ -696,7 +715,13 @@ class LocalEngine {
     ) {
       return 'cd';
     }
-    if (/^(pwd|kahan khari ho|kahan ho|current directory|current path)$/i.test(q)) {
+    if (
+      /^(?:pwd|kahan\s+khari\s+ho|kahan\s+ho|current\s+directory|current\s+path)$/i.test(q) ||
+      /(?:konsa|konsi|kounsa|kounsi|kis)\s+(?:folder|directory|path|jagah)\s*(?:hai|hay|mein|main)?/i.test(q) ||
+      /(?:current|mojooda)\s+(?:folder|directory|path|dir)\s*(?:kya\s+hai|kya\s+hay|batao|dikhao)?/i.test(q) ||
+      /(?:hum|main)\s+(?:kis|kahan|konsay|konse)\s+(?:folder|directory|jagah)\s*(?:mein|main)?\s*(?:hain|hoon|khari\s+ho|ho)/i.test(q) ||
+      /^(?:folder|directory|path)\s*(?:kya\s+hai|kya\s+hay|check\s+karo)?$/i.test(q)
+    ) {
       return 'pwd';
     }
     if (/^(ls|dir)(\s+.*)?$/i.test(q) || /\b(files dikhao|list files|folder mein kya|directory check)\b/i.test(q)) {
@@ -816,10 +841,15 @@ class LocalEngine {
         return this.handleFileWriteOrEdit(query);
       case 'web_knowledge':
         return this.explainWebConcept(query);
+      case 'query_facts':
+        return this.queryMemoryFacts(query);
       case 'cd':
         return this.changeDirectory(query);
-      case 'pwd':
-        return `📍 **Current Working Directory:**\n\`${this.getCwd()}\``;
+      case 'pwd': {
+        const cwd = this.getCwd();
+        const folderName = path.basename(cwd) || 'root';
+        return `📍 **Current Working Directory:**\n- 📁 **Folder:** \`${folderName}\`\n- 📍 **Full Path:** \`${cwd}\`\n\n*(Files dekhne ke liye \`ls\` likhein.)*`;
+      }
       case 'ls':
         return this.listFiles(query);
       case 'cat':
@@ -1039,6 +1069,45 @@ class LocalEngine {
     }
 
     res += `\n*(Naya operation sikhane ke liye: \`seekho command "myip" = curl ifconfig.me\` ya \`seekho: mera favourite editor vim hai\`)*`;
+    return res;
+  }
+
+  static queryMemoryFacts(query) {
+    const mem = MemoryManager.load();
+    const facts = mem.learned_facts || [];
+    if (facts.length === 0) {
+      return '🧠 **Memory Report:** Mere paas abhi aapke mutalliq koi saved facts nahi hain. Aap mujhe `seekho: mera naam ... hai` bol kar sikha saktay hain!';
+    }
+
+    const q = (query || '').toLowerCase();
+    const matches = [];
+
+    // Check specific topics / entities asked in query
+    const asksAboutUser = /\b(?:main\s+k(?:on|aun|o?un)|who\s+am\s+i|mera\s+naam|mere\s+naam|mera\s+intro)\b/i.test(q);
+    const asksAboutSon = /\b(?:beta|bete|bacha|bachay|son|child|saifullah)\b/i.test(q);
+
+    // If both user and son are asked, or general inquiry
+    facts.forEach(f => {
+      const txt = (f.fact || '').toLowerCase();
+      let isRelevant = false;
+      if (asksAboutUser && (txt.includes('mera naam') || txt.includes('abusaif') || (f.topic === 'user_name' && !facts.some(other => other.fact.includes('mera naam'))))) {
+        isRelevant = true;
+      }
+      if (asksAboutSon && (txt.includes('bete') || txt.includes('beta') || txt.includes('saifullah') || txt.includes('son'))) {
+        isRelevant = true;
+      }
+      if (isRelevant && !matches.includes(f.fact)) {
+        matches.push(f.fact);
+      }
+    });
+
+    const displayFacts = matches.length > 0 ? matches : facts.map(f => f.fact);
+
+    let res = `🧠 **Jena Memory Se Maloomat:**\n\n`;
+    displayFacts.forEach(factText => {
+      res += `- 💡 **${factText}**\n`;
+    });
+    res += `\n*(Yeh maloomat offline memory \`~/.jena/memory.json\` se direct 0 tokens par retrieve hui hain.)*`;
     return res;
   }
 
