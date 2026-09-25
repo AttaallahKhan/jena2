@@ -9,31 +9,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const pageMain = document.getElementById('pageMain');
   const tabNavEditor = document.getElementById('tabNavEditor');
   const pageEditor = document.getElementById('pageEditor');
-  const tabNavMonitor = document.getElementById('tabNavMonitor');
-  const pageMonitor = document.getElementById('pageMonitor');
   const btnJumpToSettings = document.getElementById('btnJumpToSettings');
   const btnBackToChat = document.getElementById('btnBackToChat');
-
-  // Live Monitor Dashboard Elements
-  const btnRefreshMonitor = document.getElementById('btnRefreshMonitor');
-  const monRefreshSelect = document.getElementById('monRefreshSelect');
-  const btnMonTorch = document.getElementById('btnMonTorch');
-  const monTorchStateText = document.getElementById('monTorchStateText');
-  const btnMonSelfie = document.getElementById('btnMonSelfie');
-  const btnMonPhoto = document.getElementById('btnMonPhoto');
-  const btnMonMediaScan = document.getElementById('btnMonMediaScan');
-  const monActionFeedback = document.getElementById('monActionFeedback');
-  const monOpsList = document.getElementById('monOpsList');
-  const monOpsBadge = document.getElementById('monOpsBadge');
-  const monOpConsole = document.getElementById('monOpConsole');
-  const monConsoleOpName = document.getElementById('monConsoleOpName');
-  const monConsoleOutput = document.getElementById('monConsoleOutput');
-  const btnCloseOpConsole = document.getElementById('btnCloseOpConsole');
-  const monActivityTableBody = document.getElementById('monActivityTableBody');
-
-  let monitorIntervalId = null;
-  let isFetchingMonitor = false;
-  let currentTorchState = 'off';
 
   // Code Editor Elements
   const editorTextarea = document.getElementById('editorTextarea');
@@ -207,7 +184,6 @@ document.addEventListener('DOMContentLoaded', () => {
     setupNavigation();
     setupEventListeners();
     setupCodeEditor();
-    setupLiveMonitor();
     await fetchConfig();
     await fetchMemory();
     await fetchLogs();
@@ -215,12 +191,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (promptInput) promptInput.focus();
   }
 
-  // --- 4-PAGE NAVIGATION SYSTEM (Chat, Settings, Code Editor, Live Monitor) ---
+  // --- 3-PAGE NAVIGATION SYSTEM (Chat, Settings, Code Editor) ---
   function setupNavigation() {
     tabNavMain.addEventListener('click', () => showPage('main'));
     tabNavSettings.addEventListener('click', () => showPage('settings'));
     if (tabNavEditor) tabNavEditor.addEventListener('click', () => showPage('editor'));
-    if (tabNavMonitor) tabNavMonitor.addEventListener('click', () => showPage('monitor'));
     if (btnJumpToSettings) btnJumpToSettings.addEventListener('click', () => showPage('settings'));
     if (btnBackToChat) btnBackToChat.addEventListener('click', () => showPage('main'));
 
@@ -231,8 +206,6 @@ document.addEventListener('DOMContentLoaded', () => {
       showPage('settings', false);
     } else if (hash === '#editor' || path === '/editor') {
       showPage('editor', false);
-    } else if (hash === '#monitor' || path === '/monitor') {
-      showPage('monitor', false);
     } else {
       showPage('main', false);
     }
@@ -241,7 +214,6 @@ document.addEventListener('DOMContentLoaded', () => {
       const h = window.location.hash.toLowerCase();
       if (h === '#settings') showPage('settings', false);
       else if (h === '#editor') showPage('editor', false);
-      else if (h === '#monitor') showPage('monitor', false);
       else showPage('main', false);
     });
   }
@@ -251,17 +223,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const pageSettingsEl = document.getElementById('pageSettings');
     if (pageSettingsEl) pageSettingsEl.style.display = 'none';
     if (pageEditor) pageEditor.style.display = 'none';
-    if (pageMonitor) pageMonitor.style.display = 'none';
 
     tabNavMain.classList.remove('active');
     tabNavSettings.classList.remove('active');
     if (tabNavEditor) tabNavEditor.classList.remove('active');
-    if (tabNavMonitor) tabNavMonitor.classList.remove('active');
-
-    // Manage live monitor polling
-    if (pageName !== 'monitor') {
-      stopMonitorPolling();
-    }
 
     if (pageName === 'settings') {
       if (pageSettingsEl) pageSettingsEl.style.display = 'flex';
@@ -275,12 +240,6 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!editorTextarea || !editorTextarea.value) {
         loadEditorFile(currentEditorFile);
       }
-    } else if (pageName === 'monitor') {
-      if (pageMonitor) pageMonitor.style.display = 'flex';
-      if (tabNavMonitor) tabNavMonitor.classList.add('active');
-      if (updateHash) window.location.hash = '#monitor';
-      fetchLiveMonitor();
-      startMonitorPolling();
     } else {
       pageMain.style.display = 'flex';
       tabNavMain.classList.add('active');
@@ -2164,309 +2123,6 @@ document.addEventListener('DOMContentLoaded', () => {
       if (btnExecuteGitAction) btnExecuteGitAction.disabled = false;
       if (gitActionBtnSpinner) gitActionBtnSpinner.style.display = 'none';
       if (gitActionBtnText) gitActionBtnText.textContent = '🚀 Commit & Push Now';
-    }
-  }
-
-  // =========================================================
-  //  📡 LIVE MONITOR ENGINE & TELEMETRY FUNCTIONS
-  // =========================================================
-
-  function setupLiveMonitor() {
-    if (btnRefreshMonitor) {
-      btnRefreshMonitor.addEventListener('click', () => {
-        fetchLiveMonitor();
-        showToast('📡 Live telemetry refreshed!');
-      });
-    }
-
-    if (monRefreshSelect) {
-      monRefreshSelect.addEventListener('change', () => {
-        restartMonitorPolling();
-      });
-    }
-
-    if (btnMonTorch) {
-      btnMonTorch.addEventListener('click', () => executeMonitorAction('torch_toggle'));
-    }
-
-    if (btnMonSelfie) {
-      btnMonSelfie.addEventListener('click', () => executeMonitorAction('take_selfie'));
-    }
-
-    if (btnMonPhoto) {
-      btnMonPhoto.addEventListener('click', () => executeMonitorAction('take_photo'));
-    }
-
-    if (btnMonMediaScan) {
-      btnMonMediaScan.addEventListener('click', () => executeMonitorAction('media_scan'));
-    }
-
-    if (btnCloseOpConsole) {
-      btnCloseOpConsole.addEventListener('click', () => {
-        if (monOpConsole) monOpConsole.style.display = 'none';
-      });
-    }
-  }
-
-  function startMonitorPolling() {
-    stopMonitorPolling();
-    const intervalMs = parseInt(monRefreshSelect?.value || '3000', 10);
-    if (intervalMs > 0) {
-      monitorIntervalId = setInterval(fetchLiveMonitor, intervalMs);
-    }
-  }
-
-  function stopMonitorPolling() {
-    if (monitorIntervalId) {
-      clearInterval(monitorIntervalId);
-      monitorIntervalId = null;
-    }
-  }
-
-  function restartMonitorPolling() {
-    stopMonitorPolling();
-    const currentView = window.location.hash.toLowerCase();
-    if (currentView === '#monitor') {
-      startMonitorPolling();
-    }
-  }
-
-  async function fetchLiveMonitor() {
-    if (isFetchingMonitor) return;
-    try {
-      isFetchingMonitor = true;
-      const res = await fetch('/api/monitor');
-      if (!res.ok) throw new Error('Live monitor telemetry unavailable');
-      const data = await res.json();
-      if (!data.success) throw new Error(data.error || 'Monitor returned unsuccessful state');
-
-      renderMonitorData(data);
-    } catch (err) {
-      console.warn('Live monitor polling warning:', err.message);
-    } finally {
-      isFetchingMonitor = false;
-    }
-  }
-
-  function renderMonitorData(data) {
-    // 1. Agent Status
-    const monAgentStatusText = document.getElementById('monAgentStatusText');
-    const monPid = document.getElementById('monPid');
-    const monUptime = document.getElementById('monUptime');
-    const monNodeVer = document.getElementById('monNodeVer');
-    const monArch = document.getElementById('monArch');
-
-    if (monAgentStatusText) monAgentStatusText.textContent = data.agent?.status || 'ACTIVE';
-    if (monPid) monPid.textContent = data.agent?.pid || '-';
-    if (monUptime) monUptime.textContent = data.agent?.uptimeFormatted || '-';
-    if (monNodeVer) monNodeVer.textContent = data.agent?.nodeVersion || '-';
-    if (monArch) monArch.textContent = `${data.agent?.arch || ''} (${data.agent?.platform || ''})`;
-
-    // 2. Battery Telemetry
-    const monBatteryPct = document.getElementById('monBatteryPct');
-    const monBatteryBar = document.getElementById('monBatteryBar');
-    const monBatteryStatusBadge = document.getElementById('monBatteryStatusBadge');
-    const monBatteryHealth = document.getElementById('monBatteryHealth');
-    const monBatteryTemp = document.getElementById('monBatteryTemp');
-    const monBatteryPlugged = document.getElementById('monBatteryPlugged');
-
-    const b = data.hardware?.battery || {};
-    const bPct = Math.min(100, Math.max(0, b.percentage ?? 0));
-    if (monBatteryPct) monBatteryPct.textContent = `${bPct}%`;
-    if (monBatteryBar) {
-      monBatteryBar.style.width = `${bPct}%`;
-      monBatteryBar.className = 'mon-progress-bar' + (bPct <= 20 ? ' danger' : (bPct <= 50 ? ' warning' : ''));
-    }
-    if (monBatteryStatusBadge) {
-      monBatteryStatusBadge.textContent = b.status || 'UNKNOWN';
-      monBatteryStatusBadge.className = 'mon-badge ' + (b.status === 'CHARGING' ? 'success' : (bPct <= 20 ? 'danger' : 'warning'));
-    }
-    if (monBatteryHealth) monBatteryHealth.textContent = b.health || 'GOOD';
-    if (monBatteryTemp) monBatteryTemp.textContent = b.temperature !== null ? `${b.temperature}°C` : 'N/A';
-    if (monBatteryPlugged) monBatteryPlugged.textContent = b.plugged || 'UNPLUGGED';
-
-    // 3. System RAM
-    const monRamUsedText = document.getElementById('monRamUsedText');
-    const monRamPctBadge = document.getElementById('monRamPctBadge');
-    const monRamBar = document.getElementById('monRamBar');
-    const monRamAvailText = document.getElementById('monRamAvailText');
-    const monProcRssText = document.getElementById('monProcRssText');
-    const monProcHeapText = document.getElementById('monProcHeapText');
-
-    const ram = data.hardware?.ram || {};
-    if (monRamUsedText) monRamUsedText.textContent = `${ram.usedGb || 0} GB / ${ram.totalGb || 0} GB`;
-    if (monRamPctBadge) monRamPctBadge.textContent = `${ram.pctUsed || 0}%`;
-    if (monRamBar) monRamBar.style.width = `${ram.pctUsed || 0}%`;
-    if (monRamAvailText) monRamAvailText.textContent = `${ram.availGb || 0} GB (${ram.availMb || 0} MB)`;
-    if (monProcRssText) monProcRssText.textContent = `${data.agent?.memoryRssMb || 0} MB`;
-    if (monProcHeapText) monProcHeapText.textContent = `${data.agent?.heapUsedMb || 0} MB`;
-
-    // 4. Device Storage
-    const monStorageTermuxText = document.getElementById('monStorageTermuxText');
-    const monStorageTermuxBadge = document.getElementById('monStorageTermuxBadge');
-    const monStorageBar = document.getElementById('monStorageBar');
-    const monStorageTermuxAvail = document.getElementById('monStorageTermuxAvail');
-    const monStoragePhoneText = document.getElementById('monStoragePhoneText');
-    const monCwdPath = document.getElementById('monCwdPath');
-
-    const storage = data.hardware?.storage || {};
-    if (monStorageTermuxText) monStorageTermuxText.textContent = `${storage.termux?.used || '-'} / ${storage.termux?.total || '-'}`;
-    if (monStorageTermuxBadge) monStorageTermuxBadge.textContent = storage.termux?.pct || '0%';
-    if (monStorageBar) monStorageBar.style.width = `${storage.termux?.rawPct || 30}%`;
-    if (monStorageTermuxAvail) monStorageTermuxAvail.textContent = `${storage.termux?.avail || '-'} free`;
-    if (monStoragePhoneText) {
-      monStoragePhoneText.textContent = storage.phone?.available ? `${storage.phone?.avail || '-'} free (${storage.phone?.used || '-'} used)` : 'Not Mounted';
-    }
-    if (monCwdPath) {
-      monCwdPath.textContent = data.agent?.cwd || '-';
-      monCwdPath.title = data.agent?.cwd || '';
-    }
-
-    // 5. CPU & Engine
-    const monCpuCoresText = document.getElementById('monCpuCoresText');
-    const monCpuArchBadge = document.getElementById('monCpuArchBadge');
-    const monCpuLoadText = document.getElementById('monCpuLoadText');
-    const monPlatformText = document.getElementById('monPlatformText');
-
-    const cpu = data.hardware?.cpu || {};
-    if (monCpuCoresText) monCpuCoresText.textContent = `${cpu.cores || 8} Cores`;
-    if (monCpuArchBadge) monCpuArchBadge.textContent = data.agent?.arch || 'arm64';
-    if (monCpuLoadText) monCpuLoadText.textContent = Array.isArray(cpu.loadAvg) ? cpu.loadAvg.join(', ') : '-';
-    if (monPlatformText) monPlatformText.textContent = `${data.agent?.platform || 'linux'} (Node ${data.agent?.nodeVersion || ''})`;
-
-    // 6. Torch State
-    if (data.hardware?.torch) {
-      currentTorchState = data.hardware.torch.state || 'off';
-      if (monTorchStateText) {
-        monTorchStateText.textContent = currentTorchState === 'on' ? 'ON 💡' : 'OFF';
-      }
-    }
-
-    // 7. Learned Operations Hub
-    if (data.intelligence) {
-      if (monOpsBadge) monOpsBadge.textContent = `${data.intelligence.operationsCount || 0} Operations`;
-      renderMonitorOperations(data.intelligence.operations || []);
-    }
-
-    // 8. Recent Activity Table
-    if (data.activity && Array.isArray(data.activity.recent)) {
-      renderMonitorActivity(data.activity.recent);
-    }
-  }
-
-  function renderMonitorOperations(ops) {
-    if (!monOpsList) return;
-    if (!ops || ops.length === 0) {
-      monOpsList.innerHTML = '<div class="mon-empty-state">Abhi tak koi operation memorize nahi hua hai.</div>';
-      return;
-    }
-
-    monOpsList.innerHTML = ops.map(op => `
-      <div class="mon-op-item">
-        <div class="mon-op-item-header">
-          <span class="mon-op-name">${escapeHtml(op.name || 'custom_op')}</span>
-          <span class="mon-op-trigger">${escapeHtml(op.trigger || '')}</span>
-        </div>
-        <div class="mon-op-desc">${escapeHtml(op.description || 'Learned operation')}</div>
-        <code class="mon-op-cmd">${escapeHtml(op.command || '')}</code>
-        <button type="button" class="mon-op-btn-run" data-op-id="${escapeHtml(op.id || op.name)}" data-op-name="${escapeHtml(op.name || op.id)}">
-          ⚡ Run Now
-        </button>
-      </div>
-    `).join('');
-
-    // Wire Run Buttons
-    const runBtns = monOpsList.querySelectorAll('.mon-op-btn-run');
-    runBtns.forEach(btn => {
-      btn.addEventListener('click', () => {
-        const opId = btn.getAttribute('data-op-id');
-        const opName = btn.getAttribute('data-op-name');
-        executeMonitorOp(opId, opName);
-      });
-    });
-  }
-
-  function renderMonitorActivity(items) {
-    if (!monActivityTableBody) return;
-    if (!items || items.length === 0) {
-      monActivityTableBody.innerHTML = '<tr><td colspan="6" class="text-muted text-center">No recent interactions logged.</td></tr>';
-      return;
-    }
-
-    monActivityTableBody.innerHTML = items.map(it => {
-      const timeStr = it.timestamp ? new Date(it.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '-';
-      const modeLabel = it.isOffline ? '⚡ Offline' : `🌐 ${escapeHtml(it.provider || 'Cloud')}`;
-      const modeClass = it.isOffline ? 'offline' : 'online';
-      const tokenDisplay = it.isOffline ? '<strong style="color:#10b981;">0 tokens</strong>' : `${it.totalTokens || 0} tokens`;
-
-      return `
-        <tr>
-          <td style="white-space:nowrap; color:var(--text-muted);">${timeStr}</td>
-          <td><span class="mon-mode-pill ${modeClass}">${modeLabel}</span></td>
-          <td style="font-weight:600; max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${escapeHtml(it.prompt || '')}">${escapeHtml(it.prompt || '(none)')}</td>
-          <td style="color:var(--text-secondary); max-width:240px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${escapeHtml(it.assistant || '')}">${escapeHtml(it.assistant || '-')}</td>
-          <td>${tokenDisplay}</td>
-          <td><span class="mon-badge success">${it.status || 'SUCCESS'}</span></td>
-        </tr>
-      `;
-    }).join('');
-  }
-
-  async function executeMonitorAction(action) {
-    if (!monActionFeedback) return;
-    try {
-      monActionFeedback.style.display = 'block';
-      monActionFeedback.textContent = `⏳ Executing ${action}...`;
-
-      const res = await fetch('/api/monitor/action', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action })
-      });
-      const data = await res.json();
-
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || 'Action failed');
-      }
-
-      monActionFeedback.textContent = data.message || 'Action executed successfully.';
-      if (data.torchState && monTorchStateText) {
-        currentTorchState = data.torchState;
-        monTorchStateText.textContent = currentTorchState === 'on' ? 'ON 💡' : 'OFF';
-      }
-
-      showToast(`⚡ ${action} kamyabi se execute ho gaya!`);
-      setTimeout(fetchLiveMonitor, 600);
-    } catch (err) {
-      monActionFeedback.textContent = `❌ Error: ${err.message}`;
-      showToast(`❌ Error: ${err.message}`);
-    }
-  }
-
-  async function executeMonitorOp(opId, opName) {
-    if (!monOpConsole || !monConsoleOutput) return;
-    try {
-      monOpConsole.style.display = 'block';
-      if (monConsoleOpName) monConsoleOpName.textContent = opName || opId;
-      monConsoleOutput.textContent = `⚡ Executing operation '${opName || opId}' locally...\n`;
-
-      const res = await fetch('/api/memory/run-op', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: opId })
-      });
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || 'Operation failed');
-      }
-
-      monConsoleOutput.textContent += (data.output || '(No output returned)');
-      monConsoleOutput.scrollTop = monConsoleOutput.scrollHeight;
-      showToast(`⚡ Operation '${opName}' kamyab raha!`);
-    } catch (err) {
-      monConsoleOutput.textContent += `\n❌ Error: ${err.message}`;
-      showToast(`❌ Op Error: ${err.message}`);
     }
   }
 });

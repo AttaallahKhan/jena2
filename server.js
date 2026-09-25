@@ -34,7 +34,6 @@ const { LogManager } = require('./src/logger');
 const { LocalEngine } = require('./src/engines/local');
 const { CloudEngine, TestEngine } = require('./src/engines/cloud');
 const { GitTools } = require('./src/tools/git');
-const { MonitorTools } = require('./src/tools/monitor');
 
 // --- SYSTEM SYNC (GLOBAL COMMAND & SHELL ALIASES) ---
 function syncSystemIntegrations() {
@@ -384,28 +383,6 @@ function startServer() {
         return sendJson(200, { success: true, message: 'Logs clear ho gaye hain.' });
       } catch (err) {
         return sendJson(400, { error: err.message });
-      }
-    }
-
-    // --- LIVE MONITOR API ---
-    if (pathname === '/api/monitor' && method === 'GET') {
-      try {
-        const liveData = await MonitorTools.getLiveData(LocalEngine.getCwd());
-        return sendJson(200, { success: true, ...liveData });
-      } catch (err) {
-        return sendJson(500, { success: false, error: err.message });
-      }
-    }
-
-    if (pathname === '/api/monitor/action' && method === 'POST') {
-      try {
-        const body = await parseBody();
-        const action = body.action;
-        if (!action) return sendJson(400, { success: false, error: 'Action zaroori hai.' });
-        const result = await MonitorTools.handleAction(action, body);
-        return sendJson(200, result);
-      } catch (err) {
-        return sendJson(500, { success: false, error: err.message });
       }
     }
 
