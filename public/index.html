@@ -16,8 +16,10 @@
       <div class="brand">
         <!-- Row 1: Avatar, Brand Name, Version Tag, Online/Offline Toggle, and Refresh Button -->
         <div class="header-main-row">
-          <div class="avatar-glow">🧚‍♀️</div>
-          <h1 class="brand-title">JENA <span class="version-tag">v0.3</span></h1>
+          <div class="header-left">
+            <div class="avatar-glow">🧚‍♀️</div>
+            <h1 class="brand-title">JENA <span class="version-tag">v0.3</span></h1>
+          </div>
           
           <div class="header-actions">
             <!-- Mode Switch (Offline / Online) -->
@@ -25,6 +27,11 @@
               <button type="button" class="mode-toggle-btn active" id="btnModeOnline" data-mode="online">🌐 Online</button>
               <button type="button" class="mode-toggle-btn" id="btnModeOffline" data-mode="offline">⚡ Offline</button>
             </div>
+
+            <!-- Light / Dark Theme Toggle -->
+            <button type="button" class="btn-icon-header" id="btnThemeToggle" title="Toggle light/dark theme">
+              🌙
+            </button>
 
             <!-- Page Refresh / Hot-Reload Button -->
             <button type="button" class="btn-icon-header" id="btnPageRefresh" title="Live Refresh Styles (Shift+Click to reload page)">
@@ -637,6 +644,40 @@
     </div>
   </div>
 
+  <script>
+    (function () {
+      var root = document.documentElement;
+      var saved = localStorage.getItem('jenaTheme');
+      if (saved === 'dark' || saved === 'light') {
+        root.setAttribute('data-theme', saved);
+      }
+
+      function currentIsDark() {
+        var attr = root.getAttribute('data-theme');
+        if (attr === 'dark') return true;
+        if (attr === 'light') return false;
+        return window.matchMedia('(prefers-color-scheme: dark)').matches;
+      }
+
+      function updateIcon() {
+        var btn = document.getElementById('btnThemeToggle');
+        if (btn) btn.textContent = currentIsDark() ? '☀️' : '🌙';
+      }
+
+      document.addEventListener('DOMContentLoaded', function () {
+        updateIcon();
+        var btn = document.getElementById('btnThemeToggle');
+        if (btn) {
+          btn.addEventListener('click', function () {
+            var next = currentIsDark() ? 'light' : 'dark';
+            root.setAttribute('data-theme', next);
+            localStorage.setItem('jenaTheme', next);
+            updateIcon();
+          });
+        }
+      });
+    })();
+  </script>
   <script src="app.js"></script>
 </body>
 </html>

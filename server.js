@@ -698,8 +698,8 @@ class LocalEngine {
     // 4. GUI & Components Code / Styling Inspection
     if (
       /(?:code|css|html|styling|styles?|color|background|bg|border|radius|padding|size|width|height)\s+(?:dikhao|batao|kya hai|kya hay|check karo)/i.test(q) ||
-      /(?:components?|elements?)\s*(?:ki\s+list|dikhao|batao|tamam|all)/i.test(q) ||
-      /(?:token\s*cards?|header|logo|avatar|brand|navbar|switch|hero|button|input|modal|cards?|body|background|bg|nav\s*tabs)\s*(?:ka|ki|ke)?\s*(?:code|css|html|styling|styles?|color|background|border|radius|padding|size|width)?\s*(?:kya hai|kya hay|dikhao|batao|check)/i.test(q) ||
+      /(?:components?|elements?)\s*(?:ki\s+list|dikhao|batao|tamam|all|read|parho)/i.test(q) ||
+      /(?:token\s*cards?|header|logo|avatar|brand|navbar|switch|hero|button|input|modal|cards?|body|background|bg|nav\s*tabs)\s*(?:ka|ki|ke)?\s*(?:code|css|html|styling|styles?|color|background|border|radius|padding|size|width|components?)?\s*(?:kya hai|kya hay|dikhao|batao|check|read|parho)/i.test(q) ||
       /(?:kya\s+color\s+hai|color\s+kya\s+hay|color\s+kya\s+hai|border\s+kya\s+hay|border\s+color\s+kya\s+hay)/i.test(q)
     ) {
       return 'inspect_component';
@@ -826,6 +826,12 @@ class LocalEngine {
     ) {
       return 'copy_item';
     }
+    if (
+      /^(?:rm(?:\s+-[a-zA-Z]+)?|remove|delete|mitao)\s+/i.test(q) ||
+      /(?:ko\s+delete\s+karo|ko\s+delete\s+kardo|ko\s+mita\s+do|ko\s+remove\s+karo)/i.test(q)
+    ) {
+      return 'delete_item';
+    }
 
     // Git & GitHub Operations Intent
     if (
@@ -877,6 +883,8 @@ class LocalEngine {
         return this.moveItem(query);
       case 'copy_item':
         return this.copyItem(query);
+      case 'delete_item':
+        return this.deleteItem(query);
       case 'teach':
         return this.learnFromInput(query);
       case 'check_mode': {
@@ -1663,6 +1671,25 @@ class LocalEngine {
       );
     } catch (err) {
       return `❌ **${isMove ? 'Move' : 'Copy'} Error:** ${err.message}`;
+    }
+  }
+
+  static deleteItem(query) {
+    let q = (query || '').trim().replace(/^(?:hey|suno|o|ai)?\s*jena\b[:,\s]*/i, '').trim();
+    let target = q.replace(/^(?:rm(?:\s+-[a-zA-Z]+)?|remove|delete|mitao)\s+/i, '').trim();
+    target = target.replace(/\s*(?:ko\s+)?(?:delete|remove|mita)\s*(?:karo|kardo|karein)?$/i, '').trim();
+    target = target.replace(/^(?:file|folder)\s+/i, '').trim();
+    if (!target) return '⚠️ Barah-e-karam delete karne ke liye file ya folder ka naam batayein (e.g. `rm filename.txt`).';
+    const resolved = this.resolvePath(target);
+    if (!fs.existsSync(resolved)) {
+      return `⚠️ File ya folder pehle se mojood nahi hai:\n\`${resolved}\``;
+    }
+    try {
+      const isDir = fs.statSync(resolved).isDirectory();
+      fs.rmSync(resolved, { recursive: true, force: true });
+      return `🗑️ **Delete Successful:** \`${resolved}\` (${isDir ? 'Folder' : 'File'} delete ho gaya).`;
+    } catch (e) {
+      return `❌ **Delete Error:** ${e.message}`;
     }
   }
 
