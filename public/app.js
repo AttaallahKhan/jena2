@@ -1654,7 +1654,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.error || 'Failed to load tree');
 
-      if (editorTreeRootName) editorTreeRootName.textContent = data.name || 'jena2';
+      if (editorTreeRootName) editorTreeRootName.textContent = data.name || 'jena';
       fileTreeContainer.innerHTML = '';
       renderFileTreeItems(data.items, fileTreeContainer);
     } catch (err) {

@@ -6,15 +6,26 @@ Jena v0.3 ko ground zero se aik ultra-minimalist, lightweight aur powerful archi
 
 ## 🌟 Core Features (Jena v0.3)
 
-1. **Minimalist 2-Page Architecture (Only 5 Files):**
-   - **Page 1 (💬 Main / Chat):** Token calculators (Allowance, Used, Balance, Speed), Active Engine Indicator, Offline/Online switch, aur full chat conversation viewport.
-   - **Page 2 (⚙️ Providers & Models):** Active AI Provider & Model dropdowns, connection tester (`⚡ Test Model`), Multi-API Key Manager, Add Custom Model, aur Add New Online Provider forms.
-   - Files:
-     - `server.js` : Unified backend (Hybrid AI Engine, Multi-Key Manager, Token Tracker, Test Engine, HTTP/SSE Server & CLI).
-     - `public/index.html` : 2-Page responsive GUI interface.
-     - `public/style.css` : Dark-mode cybernetic UI design.
-     - `public/app.js` : Reactive client routing, live token metrics, and multi-key CRUD.
-     - `package.json` : Project metadata.
+1. **Termux-Native Micro-Kernel + Pluggable Tools Architecture (v0.3):**
+   - **Entry Point (`server.js`):** Lightweight HTTP/SSE server, auto-port recovery, and CLI router (~550 lines).
+   - **Engines (`src/engines/`):**
+     - `local.js` : Deterministic offline intent classifier & dispatcher (0 tokens).
+     - `cloud.js` : High-speed streaming AI engine (Groq, Gemini, OpenAI) + Connection Tester.
+   - **Pluggable Tools (`src/tools/`):**
+     - `fs.js` : Termux filesystem tools, EXDEV-safe cross-storage copy/move (Termux ↔ Phone).
+     - `terminal.js` : Safe bash execution with automated `-y` flag handling.
+     - `system.js` : Termux hardware specs, battery, RAM, storage, and instant math.
+     - `git.js` : Git status, diff, log, and auto-commit & push to GitHub.
+     - `gui.js` : Self-inspection and live DOM/CSS mutation.
+     - `scaffold.js` : Offline full-stack web scaffolding & concept cheatsheets.
+   - **Configuration & State (`src/`):**
+     - `config.js` : Multi-key rotation, Token tracker, provider configurations.
+     - `logger.js` : Append-only conversation JSONL and failure audits.
+     - `persona.js` : Autonomous female Jena persona prompt.
+   - **Client Web UI (`public/`):**
+     - `index.html` : Cybernetic responsive interface with integrated Code Editor & File Tree.
+     - `style.css` : Dark-mode cybernetic styling and design tokens.
+     - `app.js` : Reactive client router, Monaco-like lightweight editor, and SSE stream parser.
 
 2. **Dohra Dimaagh & Mode Switch (Hybrid AI Architecture):**
    - 🔘 **Local / Online Mode Switch:** Header mein direct `[🌐 Online]` aur `[⚡ Offline]` switch button mojood hai.
@@ -30,7 +41,7 @@ Jena v0.3 ko ground zero se aik ultra-minimalist, lightweight aur powerful archi
      - Jena persona greeting & introduction.
    - 📂 **Local Filesystem Navigation (0 Tokens • Full System Control):**
      - `pwd` / `kahan khari ho`: Current working directory check.
-     - `cd <folder>`: Active directory tabdeel karein (e.g. `cd ~/jena2`).
+     - `cd <folder>`: Active directory tabdeel karein (e.g. `cd ~/jena`).
      - `ls [folder]` / `files dikhao`: Directory listing with file sizes.
      - `cat <file>`: File contents syntax-highlighted preview.
      - `tree [folder]`: Directory tree visualization.
