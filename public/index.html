@@ -127,6 +127,8 @@
               <button class="prompt-chip" data-prompt="kya seekha hai">🧠 Kya Seekha Hai?</button>
               <button class="prompt-chip" data-prompt="battery check karo">🔋 Battery Check</button>
               <button class="prompt-chip" data-prompt="kitni ram free hai">🧠 RAM Report</button>
+              <button class="prompt-chip" data-prompt="git status">🐙 Git Status</button>
+              <button class="prompt-chip" data-prompt="github commit push">🚀 GitHub Push</button>
               <button class="prompt-chip" data-prompt="hisab karo 1500 * 24">🧮 Math: 1500 * 24</button>
             </div>
           </div>
@@ -497,6 +499,9 @@
             <button type="button" class="btn btn-primary btn-sm" id="btnSaveEditorFile" title="Save file & apply hot-reload (Ctrl+S)">
               💾 Save & Apply
             </button>
+            <button type="button" class="btn btn-git btn-sm" id="btnOpenGitModal" title="GitHub Commit & Push (Open Git Manager)">
+              🐙 GitHub Push
+            </button>
             <a href="http://127.0.0.1:8085" target="_blank" class="btn btn-accent btn-sm" id="btnOpenVsCode" title="Full VS Code Web IDE (Port 8085)">
               ⚡ VS Code
             </a>
@@ -511,6 +516,7 @@
               <div class="sidebar-title">
                 <span>📁 Project:</span>
                 <strong id="editorTreeRootName">jena2</strong>
+                <span id="editorGitBranchBadge" class="git-pill-badge" title="Git Branch & Status">🌿 master</span>
               </div>
               <div class="sidebar-actions">
                 <button type="button" class="btn-icon-xs" id="btnNewFile" title="Create New File">➕ File</button>
@@ -564,6 +570,68 @@
         <div class="modal-footer">
           <button class="btn btn-secondary" id="btnCancelAllowance">Cancel</button>
           <button class="btn btn-primary" id="btnSaveAllowance">Save Budget</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- GitHub Commit & Push Modal -->
+    <div class="modal-backdrop" id="gitModal" style="display: none;">
+      <div class="modal-card git-modal-card">
+        <div class="modal-header">
+          <h3><span class="modal-icon">🐙</span> GitHub Commit &amp; Push</h3>
+          <button type="button" class="btn-close" id="btnCloseGitModal">&times;</button>
+        </div>
+        <div class="modal-body git-modal-body">
+          <div class="git-status-card">
+            <div class="git-meta-row">
+              <div class="git-meta-item">
+                <span class="git-meta-label">🌿 Branch:</span>
+                <span id="gitModalBranch" class="git-tag branch">master</span>
+              </div>
+              <div class="git-meta-item">
+                <span class="git-meta-label">📊 Status:</span>
+                <span id="gitModalStatusBadge" class="git-tag clean">Checking...</span>
+              </div>
+            </div>
+            <div class="git-remote-info">
+              <span class="git-meta-label">🔗 Remote:</span>
+              <code class="git-remote-code" id="gitModalRemote">git@github.com:AttaallahKhan/jena2.git</code>
+            </div>
+          </div>
+
+          <div class="git-changes-section">
+            <div class="git-section-header">
+              <span class="git-section-title">📝 Modified / Untracked Files (<strong id="gitModalChangeCount">0</strong>)</span>
+              <button type="button" class="btn-tool" id="btnRefreshGitModal" title="Git Status Refresh">🔄 Refresh</button>
+            </div>
+            <div class="git-files-list" id="gitModalFilesList">
+              <div class="git-empty-state">Working tree clean — koi uncommitted tabdeeli nahi hai.</div>
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-top: 14px;">
+            <label for="inputGitCommitMsg" class="form-label" style="font-weight: 600; margin-bottom: 6px; display: block;">💬 Commit Message:</label>
+            <input type="text" id="inputGitCommitMsg" class="form-control" placeholder="e.g. feat: update UI styling and fix terminal bugs" value="Update via Jena UI" />
+          </div>
+
+          <div class="git-checkbox-group">
+            <label class="custom-checkbox-label">
+              <input type="checkbox" id="chkGitAutoPush" checked />
+              <span>Commit karne ke baad foran <strong>GitHub par Push</strong> karein</span>
+            </label>
+          </div>
+
+          <div class="git-console-wrapper" id="gitConsoleWrapper" style="display: none;">
+            <div class="git-console-header">Terminal Console Output:</div>
+            <pre class="git-console-output" id="gitConsoleOutput"></pre>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="btnCancelGitModal">Band Karein</button>
+          <button type="button" class="btn btn-primary btn-git-action" id="btnExecuteGitAction">
+            <span id="gitActionBtnSpinner" class="spinner" style="display: none;"></span>
+            <span id="gitActionBtnText">🚀 Commit &amp; Push Now</span>
+          </button>
         </div>
       </div>
     </div>

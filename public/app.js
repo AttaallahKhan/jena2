@@ -37,6 +37,26 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnCancelCreateItem = document.getElementById('btnCancelCreateItem');
   const fileTreeContainer = document.getElementById('fileTreeContainer');
 
+  // Git Commit & Push Modal Elements
+  const btnOpenGitModal = document.getElementById('btnOpenGitModal');
+  const gitModal = document.getElementById('gitModal');
+  const btnCloseGitModal = document.getElementById('btnCloseGitModal');
+  const btnCancelGitModal = document.getElementById('btnCancelGitModal');
+  const btnRefreshGitModal = document.getElementById('btnRefreshGitModal');
+  const btnExecuteGitAction = document.getElementById('btnExecuteGitAction');
+  const gitActionBtnText = document.getElementById('gitActionBtnText');
+  const gitActionBtnSpinner = document.getElementById('gitActionBtnSpinner');
+  const gitModalBranch = document.getElementById('gitModalBranch');
+  const gitModalStatusBadge = document.getElementById('gitModalStatusBadge');
+  const gitModalRemote = document.getElementById('gitModalRemote');
+  const gitModalChangeCount = document.getElementById('gitModalChangeCount');
+  const gitModalFilesList = document.getElementById('gitModalFilesList');
+  const inputGitCommitMsg = document.getElementById('inputGitCommitMsg');
+  const chkGitAutoPush = document.getElementById('chkGitAutoPush');
+  const gitConsoleWrapper = document.getElementById('gitConsoleWrapper');
+  const gitConsoleOutput = document.getElementById('gitConsoleOutput');
+  const editorGitBranchBadge = document.getElementById('editorGitBranchBadge');
+
   let currentEditorFile = 'public/style.css';
   let editorOriginalContent = '';
   let openEditorFiles = ['public/style.css', 'public/index.html', 'public/app.js'];
@@ -167,6 +187,7 @@ document.addEventListener('DOMContentLoaded', () => {
     await fetchConfig();
     await fetchMemory();
     await fetchLogs();
+    fetchGitStatus();
     if (promptInput) promptInput.focus();
   }
 
@@ -215,6 +236,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (pageEditor) pageEditor.style.display = 'flex';
       if (tabNavEditor) tabNavEditor.classList.add('active');
       if (updateHash) window.location.hash = '#editor';
+      fetchGitStatus();
       if (!editorTextarea || !editorTextarea.value) {
         loadEditorFile(currentEditorFile);
       }
@@ -726,6 +748,23 @@ document.addEventListener('DOMContentLoaded', () => {
     btnCloseAllowanceModal.addEventListener('click', () => { allowanceModal.style.display = 'none'; });
     btnCancelAllowance.addEventListener('click', () => { allowanceModal.style.display = 'none'; });
     btnSaveAllowance.addEventListener('click', handleSaveAllowance);
+
+    // Git Commit & Push Modal
+    if (btnOpenGitModal) {
+      btnOpenGitModal.addEventListener('click', openGitModal);
+    }
+    if (btnCloseGitModal) {
+      btnCloseGitModal.addEventListener('click', closeGitModal);
+    }
+    if (btnCancelGitModal) {
+      btnCancelGitModal.addEventListener('click', closeGitModal);
+    }
+    if (btnRefreshGitModal) {
+      btnRefreshGitModal.addEventListener('click', fetchGitStatus);
+    }
+    if (btnExecuteGitAction) {
+      btnExecuteGitAction.addEventListener('click', executeGitCommitPush);
+    }
   }
 
   // --- ACTIONS ---
@@ -1865,6 +1904,7 @@ document.addEventListener('DOMContentLoaded', () => {
         editorStatus.classList.remove('unsaved');
       }
       showToast(`💾 ${data.message || 'File saved successfully!'}`);
+      fetchGitStatus();
 
       // Apply live hot reload
       if (data.reloadTarget === 'css') {
@@ -1967,6 +2007,122 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
       editorStatus.textContent = '✓ Saved';
       editorStatus.classList.remove('unsaved');
+    }
+  }
+
+  // --- GITHUB COMMIT & PUSH CONTROLLER ---
+  let isExecutingGit = false;
+
+  async function fetchGitStatus() {
+    try {
+      const res = await fetch('/api/git/status');
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to fetch git status');
+
+      // Update sidebar badge
+      if (editorGitBranchBadge) {
+        editorGitBranchBadge.textContent = `🌿 ${data.branch || 'master'}${data.clean ? '' : ' ●'}`;
+        editorGitBranchBadge.title = data.clean ? `Branch: ${data.branch} (Clean)` : `Branch: ${data.branch} (${data.modifiedCount} modified)`;
+      }
+
+      // Update modal elements
+      if (gitModalBranch) gitModalBranch.textContent = data.branch || 'master';
+      if (gitModalChangeCount) gitModalChangeCount.textContent = data.modifiedCount || 0;
+
+      if (gitModalStatusBadge) {
+        if (data.clean) {
+          if (data.ahead > 0) {
+            gitModalStatusBadge.className = 'git-tag dirty';
+            gitModalStatusBadge.textContent = `Ahead (${data.ahead} unpushed)`;
+          } else {
+            gitModalStatusBadge.className = 'git-tag clean';
+            gitModalStatusBadge.textContent = '✓ Clean';
+          }
+        } else {
+          gitModalStatusBadge.className = 'git-tag dirty';
+          gitModalStatusBadge.textContent = `● ${data.modifiedCount} modified`;
+        }
+      }
+
+      if (gitModalFilesList) {
+        gitModalFilesList.innerHTML = '';
+        if (data.clean && (!data.modifiedFiles || data.modifiedFiles.length === 0)) {
+          gitModalFilesList.innerHTML = `<div class="git-empty-state">Working tree clean — koi uncommitted tabdeeli nahi hai.${data.ahead > 0 ? ` (${data.ahead} unpushed local commit mojood hain).` : ''}</div>`;
+        } else {
+          data.modifiedFiles.forEach(item => {
+            const row = document.createElement('div');
+            row.className = 'git-file-row';
+            const statusKey = item.status === '??' ? 'QQ' : item.status;
+            row.innerHTML = `
+              <span class="git-file-status ${escapeHtml(statusKey)}">${escapeHtml(item.status)}</span>
+              <span class="git-file-name" title="${escapeHtml(item.file)}">${escapeHtml(item.file)}</span>
+            `;
+            gitModalFilesList.appendChild(row);
+          });
+        }
+      }
+
+      return data;
+    } catch (err) {
+      console.warn('Git status fetch error:', err);
+    }
+  }
+
+  function openGitModal() {
+    if (!gitModal) return;
+    gitModal.style.display = 'flex';
+    if (gitConsoleWrapper) gitConsoleWrapper.style.display = 'none';
+    if (gitConsoleOutput) gitConsoleOutput.textContent = '';
+    fetchGitStatus();
+  }
+
+  function closeGitModal() {
+    if (!gitModal) return;
+    gitModal.style.display = 'none';
+  }
+
+  async function executeGitCommitPush() {
+    if (isExecutingGit) return;
+    const msg = (inputGitCommitMsg && inputGitCommitMsg.value ? inputGitCommitMsg.value.trim() : '') || `Update via Jena UI: ${new Date().toISOString()}`;
+    const push = chkGitAutoPush ? chkGitAutoPush.checked : true;
+
+    try {
+      isExecutingGit = true;
+      if (btnExecuteGitAction) btnExecuteGitAction.disabled = true;
+      if (gitActionBtnSpinner) gitActionBtnSpinner.style.display = 'inline-block';
+      if (gitActionBtnText) gitActionBtnText.textContent = push ? 'Committing & Pushing...' : 'Committing...';
+
+      if (gitConsoleWrapper) gitConsoleWrapper.style.display = 'block';
+      if (gitConsoleOutput) gitConsoleOutput.textContent = `🐙 Executing Git ${push ? 'Commit & Push' : 'Commit'}...\nMessage: "${msg}"\n`;
+
+      const res = await fetch('/api/git/commit-push', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: msg, push })
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Git operation failed');
+      }
+
+      if (gitConsoleOutput) {
+        gitConsoleOutput.textContent += '\n' + (data.message || 'Done.');
+        gitConsoleOutput.scrollTop = gitConsoleOutput.scrollHeight;
+      }
+
+      showToast(push ? '🚀 GitHub par commit & push kamyab ho gaya!' : '✅ Git commit kamyab ho gaya!');
+      await fetchGitStatus();
+    } catch (err) {
+      if (gitConsoleOutput) {
+        gitConsoleOutput.textContent += `\n❌ Error: ${err.message}`;
+      }
+      showToast('❌ Git Error: ' + err.message);
+    } finally {
+      isExecutingGit = false;
+      if (btnExecuteGitAction) btnExecuteGitAction.disabled = false;
+      if (gitActionBtnSpinner) gitActionBtnSpinner.style.display = 'none';
+      if (gitActionBtnText) gitActionBtnText.textContent = '🚀 Commit & Push Now';
     }
   }
 });

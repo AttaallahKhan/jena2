@@ -528,7 +528,10 @@ class LocalEngine {
     if (!inputPath || inputPath.trim() === '' || inputPath === '~') {
       return HOME_DIR;
     }
-    const trimmed = inputPath.trim();
+    let trimmed = inputPath.trim();
+    if (trimmed.startsWith('~/home/')) {
+      trimmed = '~/' + trimmed.slice(7);
+    }
     if (trimmed.startsWith('~/')) {
       return path.join(HOME_DIR, trimmed.slice(2));
     }
@@ -714,6 +717,23 @@ class LocalEngine {
     if (/^(touch|file banao)\s+/i.test(q)) {
       return 'touch';
     }
+    if (
+      /^(?:cp|copy)\s+/i.test(q) ||
+      /(?:copy\s+karo|paste\s+karo|main\s+copy\s+karo|main\s+paste\s+karo)/i.test(q) ||
+      /(?:copy\s+(?:public|folder|file))/i.test(q)
+    ) {
+      return 'copy_item';
+    }
+
+    // Git & GitHub Operations Intent
+    if (
+      /^(?:git|github)\s*(?:status|diff|log|branch)\b/i.test(q) ||
+      /^(?:git|github)\s*(?:commit\s*(?:aor|aur|and|&)?\s*push|push|commit)\b/i.test(q) ||
+      /(?:github|git)\s*(?:par|pe)?\s*(?:commit\s*(?:aor|aur|and|&)?\s*push|push|commit|bhej\s+do|upload\s+kardo)/i.test(q) ||
+      /^(?:commit\s*(?:aor|aur|and|&)?\s*push|push\s+to\s+github|git\s+push|git\s+status|git\s+log|git\s+diff)\b/i.test(q)
+    ) {
+      return 'git_op';
+    }
 
     // If query asks to write code, script, or explain programming, pass to Cloud AI
     const creativeWords = ['script', 'code', 'likho', 'banao', 'create', 'write', 'function', 'class', 'program', 'debug', 'explain'];
@@ -724,7 +744,13 @@ class LocalEngine {
     // 10. Hardware & System Specs
     if (/\b(battery|charge|charging|battery status)\b/.test(q)) return 'battery';
     if (/\b(ram|memory|free ram|kitni ram)\b/.test(q)) return 'ram';
-    if (/\b(storage|disk|space|kitni space)\b/.test(q)) return 'storage';
+    if (
+      /(?:kitni|kitna|free|available|total|check|status)\s+(?:storage|disk|space)\b/i.test(q) ||
+      /(?:storage|disk|space)\s+(?:kitni|kitna|check|status|batao|info|specs)\b/i.test(q) ||
+      /^(?:storage|disk|disk space|storage check|check storage)$/i.test(q)
+    ) {
+      return 'storage';
+    }
     if (/\b(time|waqt|date|tarikh|din|aaj kya date|clock)\b/.test(q)) return 'datetime';
     if (/\b(uptime|specs|hardware|system info|device specs)\b/.test(q)) return 'specs';
     if (/^(salam|assalam|hello|hi|hey|kaise ho)\b/.test(q)) return 'greeting';
@@ -743,6 +769,10 @@ class LocalEngine {
     }
 
     switch (intent) {
+      case 'git_op':
+        return await this.executeGitOperation(query);
+      case 'copy_item':
+        return this.copyItem(query);
       case 'teach':
         return this.learnFromInput(query);
       case 'check_mode': {
@@ -1255,6 +1285,227 @@ class LocalEngine {
     } catch (e) {
       return `❌ **touch Error:** ${e.message}`;
     }
+  }
+
+  static copyItem(query) {
+    let q = query.trim();
+    q = q.replace(/^(?:hey|suno|o|ai)?\s*jena\b[:,\s]*/i, '').trim();
+
+    let src = '';
+    let dest = '';
+
+    // Pattern 1: copy <src> (folder/file)? paste in <dest>
+    let m = q.match(/^(?:cp|copy)\s+(?:folder\s+|file\s+)?(.+?)\s+(?:paste\s+in|to|into)\s+(.+)$/i);
+    if (m) {
+      src = m[1].trim();
+      dest = m[2].trim();
+    } else {
+      // Pattern 2: <src> (folder/file)? ko <dest> (main|mein|par)? copy karo
+      m = q.match(/^(.+?)\s+(?:folder\s+|file\s+)?ko\s+(.+?)\s+(?:main|mein|par)?\s*(?:copy|paste)\s*(?:karo|kardo)?$/i);
+      if (m) {
+        src = m[1].trim();
+        dest = m[2].trim();
+      } else {
+        // Pattern 3: cp <src> <dest>
+        m = q.match(/^cp\s+(.+?)\s+(.+)$/i);
+        if (m) {
+          src = m[1].trim();
+          dest = m[2].trim();
+        }
+      }
+    }
+
+    if (!src || !dest) {
+      return '⚠️ Barah-e-karam source aur destination batayein (e.g. `copy public to ~/storage/downloads`).';
+    }
+
+    dest = dest.replace(/\s*(?:main|mein|k\s+andar|ke\s+andar)\s*$/i, '').trim();
+    src = src.replace(/^(?:folder|file)\s+/i, '').replace(/\s+(?:folder|file)\s*$/i, '').trim();
+
+    let resolvedSrc = this.resolvePath(src);
+    if (!fs.existsSync(resolvedSrc) && fs.existsSync(path.join(__dirname, src))) {
+      resolvedSrc = path.join(__dirname, src);
+    }
+    let resolvedDest = this.resolvePath(dest);
+
+    if (!fs.existsSync(resolvedSrc)) {
+      return `❌ **Copy Error:** Source file ya folder mojood nahi hai:\n\`${resolvedSrc}\``;
+    }
+
+    try {
+      const srcStat = fs.statSync(resolvedSrc);
+      const isDir = srcStat.isDirectory();
+
+      if (fs.existsSync(resolvedDest)) {
+        const destStat = fs.statSync(resolvedDest);
+        if (destStat.isDirectory()) {
+          resolvedDest = path.join(resolvedDest, path.basename(resolvedSrc));
+        }
+      } else {
+        const parentDir = path.dirname(resolvedDest);
+        if (!fs.existsSync(parentDir)) {
+          fs.mkdirSync(parentDir, { recursive: true });
+        }
+      }
+
+      fs.cpSync(resolvedSrc, resolvedDest, { recursive: true });
+
+      return (
+        `📋 **Copy Successful!**\n` +
+        `- 📦 **Type:** ${isDir ? '📁 Folder' : '📄 File'}\n` +
+        `- 🟢 **From:** \`${resolvedSrc}\`\n` +
+        `- 🎯 **To:** \`${resolvedDest}\`\n\n` +
+        `*(Kamyabi se copy ho gaya hai.)*`
+      );
+    } catch (err) {
+      return `❌ **Copy Error:** ${err.message}`;
+    }
+  }
+
+  // --- GIT & GITHUB OPERATIONS ---
+  static async executeGitOperation(query) {
+    const q = query.trim().toLowerCase();
+    const projectDir = __dirname;
+    const gitDir = path.join(projectDir, '.git');
+
+    if (!fs.existsSync(gitDir)) {
+      return `⚠️ **Git Repository Not Found:** \`${projectDir}\` mein koi git repository initialize nahi hai.`;
+    }
+
+    // 1. Status query
+    if (/^(?:git|github)\s+status\b/i.test(q) || q === 'git status') {
+      return await new Promise(resolve => {
+        exec('git status -s -b', { cwd: projectDir }, (err, stdout) => {
+          if (err) return resolve(`❌ **Git Status Error:** ${err.message}`);
+          const out = (stdout || '').trim();
+          resolve(
+            `🐙 **Jena Git Repository Status:**\n` +
+            `- 📍 **Repo:** \`${projectDir}\`\n\n` +
+            `\`\`\`sh\n${out || 'Working tree clean (No uncommitted changes)'}\n\`\`\`\n\n` +
+            `*(Changes commit aur push karne ke liye \`git commit push\` likhein ya editor mein **🐙 GitHub Push** button dabayein.)*`
+          );
+        });
+      });
+    }
+
+    // 2. Diff query
+    if (/^(?:git|github)\s+diff\b/i.test(q) || q === 'git diff') {
+      return await new Promise(resolve => {
+        exec('git diff --stat', { cwd: projectDir }, (err, stdout) => {
+          const out = (stdout || '').trim();
+          resolve(`🐙 **Git Diff (Changed Files):**\n\`\`\`sh\n${out || 'No uncommitted changes'}\n\`\`\``);
+        });
+      });
+    }
+
+    // 3. Log query
+    if (/^(?:git|github)\s+log\b/i.test(q) || q === 'git log') {
+      return await new Promise(resolve => {
+        exec('git log -n 5 --oneline --decorate', { cwd: projectDir }, (err, stdout) => {
+          const out = (stdout || '').trim();
+          resolve(`🐙 **Git Recent Commits:**\n\`\`\`sh\n${out || 'No commits yet'}\n\`\`\``);
+        });
+      });
+    }
+
+    // 4. Commit and Push operation
+    let commitMsg = '';
+    const m = query.match(/(?:commit\s*(?:aor|aur|and|&)?\s*push|push|commit)[:\s]+["']?([^"'\n]+)["']?$/i);
+    if (m && m[1]) {
+      const candidate = m[1].trim();
+      if (!/^(?:karo|kardo|karein|now|please)$/i.test(candidate)) {
+        commitMsg = candidate;
+      }
+    }
+    if (!commitMsg) {
+      const nowStr = new Date().toISOString().replace('T', ' ').slice(0, 19);
+      commitMsg = `Update via Jena: ${nowStr}`;
+    }
+
+    return await this.gitCommitAndPush(commitMsg, true);
+  }
+
+  static gitCommitAndPush(message, pushToRemote = true) {
+    return new Promise(resolve => {
+      const projectDir = __dirname;
+      const cleanMsg = (message || `Update via Jena: ${new Date().toISOString()}`).replace(/"/g, '\\"');
+
+      // 1. Stage all changes
+      exec('git add -A', { cwd: projectDir }, (addErr) => {
+        if (addErr) {
+          return resolve(`❌ **Git Add Error:** ${addErr.message}`);
+        }
+
+        // 2. Check if there are staged changes
+        exec('git status --porcelain', { cwd: projectDir }, (statusErr, statusOut) => {
+          const hasChanges = (statusOut || '').trim().length > 0;
+
+          const doPush = (commitNotice = '') => {
+            if (!pushToRemote) {
+              return resolve(commitNotice || '✅ **Changes committed locally (Push skipped).**');
+            }
+
+            exec('git rev-parse --abbrev-ref HEAD', { cwd: projectDir }, (branchErr, branchOut) => {
+              const branch = (branchOut || 'master').trim();
+              exec(`git push origin ${branch}`, {
+                cwd: projectDir,
+                timeout: 45000,
+                env: { ...process.env, HOME: HOME_DIR }
+              }, (pushErr, pushStdout, pushStderr) => {
+                const pOut = (pushStdout || '').trim();
+                const pErr = (pushStderr || '').trim();
+                let combined = (pOut ? pOut + '\n' : '') + pErr;
+                combined = combined.trim();
+
+                if (pushErr) {
+                  return resolve(
+                    `${commitNotice ? commitNotice + '\n\n' : ''}` +
+                    `⚠️ **Git Push Warning / Error:**\n\`\`\`sh\n${pushErr.message}\n${combined}\n\`\`\`\n` +
+                    `*(SSH authentication ya network connection check karein.)*`
+                  );
+                }
+
+                resolve(
+                  `🚀 **GitHub Commit & Push Successful!**\n\n` +
+                  `- 🌿 **Branch:** \`${branch}\`\n` +
+                  `- 💬 **Commit Message:** \`${cleanMsg}\`\n` +
+                  `- 🌐 **Remote:** \`origin/${branch}\`\n\n` +
+                  `\`\`\`sh\n${combined || 'Everything up-to-date'}\n\`\`\`\n\n` +
+                  `✅ *Aapki tamam tabdeeliyan GitHub repository par live update ho chuki hain!*`
+                );
+              });
+            });
+          };
+
+          if (hasChanges) {
+            exec(`git commit -m "${cleanMsg}"`, {
+              cwd: projectDir,
+              env: { ...process.env, HOME: HOME_DIR }
+            }, (commitErr, commitStdout) => {
+              if (commitErr) {
+                return resolve(`❌ **Git Commit Error:** ${commitErr.message}`);
+              }
+              const cOut = (commitStdout || '').trim();
+              const commitNotice = `✅ **Changes Committed:**\n\`\`\`sh\n${cOut}\n\`\`\``;
+              doPush(commitNotice);
+            });
+          } else {
+            exec('git status -s -b', { cwd: projectDir }, (bErr, bOut) => {
+              const bInfo = (bOut || '').split('\n')[0] || '';
+              if (bInfo.includes('ahead')) {
+                doPush('ℹ️ Working tree clean thi magar unpushed local commits mojood thay. Pushing to GitHub...');
+              } else {
+                resolve(
+                  `ℹ️ **Working Tree Clean:** Koi nayi tabdeeli (changes) nahi mili commit karne ke liye.\n\n` +
+                  `- 🌿 **Branch:** Already up-to-date with \`origin\`.\n` +
+                  `- 💡 File editor mein tabdeeli karein ya file save karein, phir dobara push karein.`
+                );
+              }
+            });
+          }
+        });
+      });
+    });
   }
 
   // --- OFFLINE COMPONENT KNOWLEDGE & LIVE MUTATION ENGINE ---
@@ -3677,6 +3928,71 @@ function startServer() {
         });
       } catch (err) {
         return sendJson(400, { error: err.message });
+      }
+    }
+
+    // GET /api/git/status
+    if (pathname === '/api/git/status' && method === 'GET') {
+      try {
+        const projectDir = __dirname;
+        const data = await new Promise((resolve, reject) => {
+          exec('git status -s -b && echo "---GIT_DELIM---" && git log -n 1 --oneline', { cwd: projectDir }, (err, stdout) => {
+            if (err) return reject(err);
+            const parts = (stdout || '').split('---GIT_DELIM---');
+            const statusOutput = (parts[0] || '').trim();
+            const lastCommitLine = (parts[1] || '').trim();
+
+            const lines = statusOutput.split('\n');
+            const branchLine = lines[0] || '';
+            const modifiedFiles = [];
+
+            for (let i = 1; i < lines.length; i++) {
+              const line = lines[i].trim();
+              if (line) {
+                const status = line.slice(0, 2).trim();
+                const file = line.slice(2).trim();
+                modifiedFiles.push({ status, file });
+              }
+            }
+
+            let branch = 'master';
+            let ahead = 0;
+            let behind = 0;
+            const bMatch = branchLine.match(/^##\s+([^\s\.]+)(?:\.\.\.([^\s]+))?(?:\s+\[(?:ahead\s+(\d+))?(?:,\s*)?(?:behind\s+(\d+))?\])?/);
+            if (bMatch) {
+              branch = bMatch[1] || 'master';
+              if (bMatch[3]) ahead = parseInt(bMatch[3], 10);
+              if (bMatch[4]) behind = parseInt(bMatch[4], 10);
+            }
+
+            resolve({
+              branch,
+              ahead,
+              behind,
+              clean: modifiedFiles.length === 0,
+              modifiedCount: modifiedFiles.length,
+              modifiedFiles,
+              lastCommit: lastCommitLine,
+              rawStatus: statusOutput
+            });
+          });
+        });
+        return sendJson(200, data);
+      } catch (err) {
+        return sendJson(500, { error: err.message });
+      }
+    }
+
+    // POST /api/git/commit-push
+    if (pathname === '/api/git/commit-push' && method === 'POST') {
+      try {
+        const body = await parseBody();
+        const message = (body.message || '').trim() || `Update via Jena UI: ${new Date().toISOString().replace('T', ' ').slice(0, 19)}`;
+        const push = body.push !== false;
+        const result = await LocalEngine.gitCommitAndPush(message, push);
+        return sendJson(200, { success: true, message: result });
+      } catch (err) {
+        return sendJson(500, { error: err.message });
       }
     }
 
