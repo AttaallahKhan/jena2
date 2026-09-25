@@ -15,6 +15,7 @@ Jena v0.3 ko ground zero se aik ultra-minimalist, lightweight aur powerful archi
      - `fs.js` : Termux filesystem tools, EXDEV-safe cross-storage copy/move (Termux ↔ Phone).
      - `terminal.js` : Safe bash execution with automated `-y` flag handling.
      - `system.js` : Termux hardware specs, battery, RAM, storage, and instant math.
+     - `device.js` : Mobile hardware controls (Torch, Front/Back Camera, Media Scanner).
      - `git.js` : Git status, diff, log, and auto-commit & push to GitHub.
      - `gui.js` : Self-inspection and live DOM/CSS mutation.
      - `scaffold.js` : Offline full-stack web scaffolding & concept cheatsheets.
@@ -31,6 +32,18 @@ Jena v0.3 ko ground zero se aik ultra-minimalist, lightweight aur powerful archi
    - 🔘 **Local / Online Mode Switch:** Header mein direct `[🌐 Online]` aur `[⚡ Offline]` switch button mojood hai.
    - ⚡ **Offline Local Engine (Zero Tokens, Instant <0.1s):**
      - Provider dropdown mein `⚡ Offline / Local Engine` aur model `Jena Local Core` direct selectable hain.
+     - 🔦 **Torch / Flashlight:** `torch on karo`, `torch off karo`, `flashlight jalao`, `batti band karo`.
+     - 📸 **Camera & Selfie:**
+       - `front camera kholo aor selfie lo` / `selfie lo` (Front Camera • ID: 1).
+       - `back camera kholo aor photo lo` / `photo lo` (Back Camera • ID: 0).
+       - Photos automatically `/storage/emulated/0/DCIM/Camera/` mein save hoti hain aur `termux-media-scan` ke zariye Android Gallery / Google Photos app mein foran add ho jati hain.
+     - 📦 **Cross-Storage File Copy & Move (Termux ↔ Phone):**
+       - Termux aur Phone storage (`/storage/emulated/0`) ke darmiyan EXDEV-safe files aur folders copy aur move karna:
+         - `phone se test.txt home main copy karo`
+         - `termux se public folder phone main move kardo`
+         - `public folder ko phone main copy karo`
+         - `copy from phone to home <file>`
+         - `cp -r <src> <dest>`
      - Battery status (percentage, charging, temperature, health via Termux Hardware API).
      - RAM & Memory jaiza (`/proc/meminfo`).
      - Disk & Storage analysis (`/data` partition).

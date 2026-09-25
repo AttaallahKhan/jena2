@@ -13,6 +13,7 @@ const { SystemTools } = require('../tools/system');
 const { GitTools } = require('../tools/git');
 const { GuiTools } = require('../tools/gui');
 const { ScaffoldTools } = require('../tools/scaffold');
+const { DeviceTools } = require('../tools/device');
 
 class LocalEngine {
   static currentDir = HOME_DIR;
@@ -40,7 +41,11 @@ class LocalEngine {
     }
 
     // 2. Memory query
-    if (/^(kya seekha hai|kya yaad hai|yaad kya hai|memory check|show memory|learned operations|learned commands)\b/i.test(q) || q === 'memory') {
+    if (
+      /(?:apne\s+|apni\s+)?(?:operations|memory|skills|commands)\s*(?:dikhao|check|batao|list|show)\b/i.test(q) ||
+      /^(?:kya\s+seekha\s+hai|kya\s+yaad\s+hai|yaad\s+kya\s+hai|memory\s+check|show\s+memory|show\s+operations|learned\s+operations|learned\s+commands|operations|memory)\b/i.test(q) ||
+      q === 'memory' || q === 'operations'
+    ) {
       return 'show_memory';
     }
 
@@ -255,6 +260,36 @@ class LocalEngine {
       return 'git_op';
     }
 
+    // Device Torch & Flashlight Controls
+    if (
+      /(?:torch|flashlight|batti)\s*.*?(?:on\s+karo|jalao|on\s+kardo|on\s+karein|chalao|kholo|on\b)/i.test(q) ||
+      /^(?:torch\s+on|flashlight\s+on|batti\s+on|turn\s+on\s+torch|turn\s+on\s+flashlight)$/i.test(q)
+    ) {
+      return 'torch_on';
+    }
+    if (
+      /(?:torch|flashlight|batti)\s*.*?(?:off\s+karo|band\s+karo|off\s+kardo|band\s+kardo|bujhao|off\b)/i.test(q) ||
+      /^(?:torch\s+off|flashlight\s+off|batti\s+off|turn\s+off\s+torch|turn\s+off\s+flashlight)$/i.test(q)
+    ) {
+      return 'torch_off';
+    }
+
+    // Device Camera & Selfie Controls
+    if (
+      /(?:front\s+camera|selfie)\s*.*?(?:kholo|lo|kheencho|capture|banao|nikalo|le\s*lo)/i.test(q) ||
+      /(?:kholo|lo|kheencho|capture|nikalo|le\s*lo)\s*.*?(?:front\s+camera|selfie)/i.test(q) ||
+      /^(?:selfie|front\s+camera|selfie\s+lo|take\s+selfie|front\s+camera\s+photo|selfie\s+kheencho)$/i.test(q)
+    ) {
+      return 'camera_selfie';
+    }
+    if (
+      /(?:back\s+camera|rear\s+camera|camera)\s*.*?(?:kholo|lo|kheencho|capture|nikalo|photo|tasveer|le\s*lo)/i.test(q) ||
+      /(?:photo|tasveer)\s*(?:lo|kheencho|banao|capture|nikalo|le\s*lo)/i.test(q) ||
+      /^(?:photo\s+lo|tasveer\s+lo|camera\s+photo|take\s+photo|back\s+camera\s+photo|photo\s+kheencho)$/i.test(q)
+    ) {
+      return 'camera_photo';
+    }
+
     // Creative keywords passed to Cloud AI
     const creativeWords = ['script', 'code', 'likho', 'banao', 'create', 'write', 'function', 'class', 'program', 'debug', 'explain'];
     for (const w of creativeWords) {
@@ -291,6 +326,14 @@ class LocalEngine {
     switch (intent) {
       case 'git_op':
         return await GitTools.executeGitOperation(query, path.join(HOME_DIR, 'jena'));
+      case 'torch_on':
+        return await DeviceTools.setTorch('on');
+      case 'torch_off':
+        return await DeviceTools.setTorch('off');
+      case 'camera_selfie':
+        return await DeviceTools.takePhoto('front');
+      case 'camera_photo':
+        return await DeviceTools.takePhoto('back');
       case 'move_item':
         return FsTools.transferItem(query, true, this.getCwd());
       case 'copy_item':

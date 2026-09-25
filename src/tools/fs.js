@@ -6,6 +6,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { exec } = require('child_process');
 const { HOME_DIR, PHONE_DIR } = require('../config');
 
 class FsTools {
@@ -28,8 +29,8 @@ class FsTools {
     }
     const lower = trimmed.toLowerCase();
 
-    // 1. Direct aliases for HOME
-    if (['home', 'home folder', 'home dir', 'home directory', '/home'].includes(lower)) {
+    // 1. Direct aliases for HOME / TERMUX
+    if (['home', 'home folder', 'home dir', 'home directory', '/home', 'termux', 'termux home'].includes(lower)) {
       return HOME_DIR;
     }
 
@@ -52,14 +53,26 @@ class FsTools {
       return PHONE_DIR;
     }
 
-    // 3. Prefix handling for home
+    // 3. Direct aliases for Android Shared / SDCard storage
+    if (['storage', 'sdcard', '/sdcard', 'shared', 'internal', 'internal storage', 'phone main storage'].includes(lower)) {
+      return '/storage/emulated/0';
+    }
+
+    // 4. Common Android system / media folders
+    if (['dcim', 'camera'].includes(lower)) return '/storage/emulated/0/DCIM';
+    if (['downloads', 'download'].includes(lower)) return '/storage/emulated/0/Download';
+    if (['pictures', 'photos', 'images'].includes(lower)) return '/storage/emulated/0/Pictures';
+    if (['music'].includes(lower)) return '/storage/emulated/0/Music';
+    if (['movies', 'videos'].includes(lower)) return '/storage/emulated/0/Movies';
+
+    // 5. Prefix handling for home (e.g. ~/home/ or home/)
     if (trimmed.startsWith('~/home/')) {
       trimmed = '~/' + trimmed.slice(7);
     } else if (/^home\/(.+)$/i.test(trimmed)) {
       return path.normalize(path.join(HOME_DIR, trimmed.replace(/^home\//i, '')));
     }
 
-    // 4. Prefix handling for phone (termux-to-phone)
+    // 6. Prefix handling for phone (termux-to-phone)
     if (/^(?:phone|termux-to-phone|termex-to-phone)\/(.+)$/i.test(trimmed)) {
       this.ensurePhoneDir();
       const sub = trimmed.replace(/^(?:phone|termux-to-phone|termex-to-phone)\//i, '');
@@ -71,7 +84,7 @@ class FsTools {
       return path.normalize(path.join(PHONE_DIR, sub));
     }
 
-    // 5. Storage shortcuts (e.g. ~/storage/<name> or storage/<name>)
+    // 7. Storage shortcuts (e.g. ~/storage/<name> or storage/<name>)
     const storageMatch = trimmed.match(/^(?:~\/)?storage\/(.+)$/i);
     if (storageMatch) {
       const sub = storageMatch[1].trim();
@@ -80,8 +93,15 @@ class FsTools {
         this.ensurePhoneDir();
         return PHONE_DIR;
       }
+      if (subLower === 'downloads' || subLower === 'download') return '/storage/emulated/0/Download';
+      if (subLower === 'dcim' || subLower === 'camera') return '/storage/emulated/0/DCIM';
+      if (subLower === 'pictures' || subLower === 'photos') return '/storage/emulated/0/Pictures';
+      if (subLower === 'movies' || subLower === 'videos') return '/storage/emulated/0/Movies';
+      if (subLower === 'music') return '/storage/emulated/0/Music';
+      if (subLower === 'shared') return '/storage/emulated/0';
+
       const phonePath = path.join('/storage/emulated/0', sub);
-      if (fs.existsSync(phonePath) || !['dcim', 'downloads', 'movies', 'music', 'pictures', 'shared'].includes(subLower)) {
+      if (fs.existsSync(phonePath)) {
         return path.normalize(phonePath);
       }
     }
@@ -376,13 +396,18 @@ class FsTools {
       isMove = false;
     }
 
+    // Strip flags like -r, -rf, -f, -a, -v
+    q = q.replace(/^(?:cp|mv|copy|move)\s+-[a-zA-Z]+\s+/i, (match) => {
+      return match.includes('mv') ? 'mv ' : 'cp ';
+    });
+
     let src = '';
     let dest = '';
     let item = '';
     let srcDir = '';
     let destDir = '';
 
-    let m = q.match(/^(?:cp|copy|mv|move)?\s*from\s+([a-zA-Z0-9_\-\/~]+)\s+to\s+([a-zA-Z0-9_\-\/~]+)\s+(?:copy|move|karo|kardo)?\s*(.+)$/i);
+    let m = q.match(/^(?:cp|copy|mv|move)?\s*from\s+([a-zA-Z0-9_\-\/~.]+)\s+to\s+([a-zA-Z0-9_\-\/~.]+)\s+(?:copy|move|karo|kardo)?\s*(.+)$/i);
     if (m) {
       srcDir = m[1].trim();
       destDir = m[2].trim();
@@ -390,7 +415,7 @@ class FsTools {
     }
 
     if (!srcDir) {
-      m = q.match(/^(?:cp|copy|mv|move)?\s*(.+?)\s+from\s+([a-zA-Z0-9_\-\/~]+)\s+to\s+([a-zA-Z0-9_\-\/~]+)(?:\s+(?:copy|move|karo|kardo))?$/i);
+      m = q.match(/^(?:cp|copy|mv|move)?\s*(.+?)\s+from\s+([a-zA-Z0-9_\-\/~.]+)\s+to\s+([a-zA-Z0-9_\-\/~.]+)(?:\s+(?:copy|move|karo|kardo))?$/i);
       if (m) {
         item = m[1].trim();
         srcDir = m[2].trim();
@@ -399,7 +424,7 @@ class FsTools {
     }
 
     if (!srcDir) {
-      m = q.match(/^([a-zA-Z0-9_\-\/~]+)\s+se\s+(.+?)\s+([a-zA-Z0-9_\-\/~]+)\s+(?:main|mein|par)\s*(?:copy|move|paste)?\s*(?:karo|kardo|karein)?$/i);
+      m = q.match(/^([a-zA-Z0-9_\-\/~.]+)\s+se\s+(.+?)\s+([a-zA-Z0-9_\-\/~.]+)\s+(?:main|mein|par)\s*(?:copy|move|paste)?\s*(?:karo|kardo|karein)?$/i);
       if (m) {
         srcDir = m[1].trim();
         item = m[2].trim();
@@ -408,7 +433,7 @@ class FsTools {
     }
 
     if (!srcDir && !src) {
-      m = q.match(/^(.+?)\s+(?:folder\s+|file\s+)?ko\s+([a-zA-Z0-9_\-\/~]+)\s+(?:main|mein|par)\s*(?:copy|move|paste)\s*(?:karo|kardo|karein)?$/i);
+      m = q.match(/^(.+?)\s+(?:folder\s+|file\s+)?ko\s+([a-zA-Z0-9_\-\/~.]+)\s+(?:main|mein|par)\s*(?:copy|move|paste)\s*(?:karo|kardo|karein)?$/i);
       if (m) {
         item = m[1].trim();
         dest = m[2].trim();
@@ -432,9 +457,26 @@ class FsTools {
     }
 
     if (!srcDir && !src) {
-      m = q.match(/^(?:copy|move)\s+(.+?)\s+(phone|home|storage\/[a-zA-Z0-9_\-]+|termux-to-phone)$/i);
+      m = q.match(/^(?:copy|move)\s+(.+?)\s+(phone|home|termux|storage\/[a-zA-Z0-9_\-]+|termux-to-phone)$/i);
       if (m) {
         src = m[1].trim();
+        dest = m[2].trim();
+      }
+    }
+
+    if (!srcDir && !src) {
+      m = q.match(/^([a-zA-Z0-9_\-\/~.]+)\s+se\s+(.+?)\s*(?:copy|move|paste)\s*(?:karo|kardo|karein)?$/i);
+      if (m) {
+        srcDir = m[1].trim();
+        item = m[2].trim();
+        destDir = currentDir;
+      }
+    }
+
+    if (!srcDir && !src && !item) {
+      m = q.match(/^(.+?)\s+([a-zA-Z0-9_\-\/~.]+)\s+(?:main|mein|par)\s*(?:copy|move|paste)\s*(?:karo|kardo|karein)?$/i);
+      if (m) {
+        item = m[1].trim();
         dest = m[2].trim();
       }
     }
@@ -526,6 +568,14 @@ class FsTools {
         }
       } else {
         fs.cpSync(resolvedSrc, targetDest, { recursive: true });
+      }
+
+      // Sync Android media scanner if copied or moved to/from phone storage
+      if (targetDest.startsWith('/storage/emulated/0') || targetDest.includes('termux-to-phone')) {
+        exec(`/data/data/com.termux/files/usr/bin/termux-media-scan "${targetDest}" 2>/dev/null`, () => {});
+      }
+      if (isMove && (resolvedSrc.startsWith('/storage/emulated/0') || resolvedSrc.includes('termux-to-phone'))) {
+        exec(`/data/data/com.termux/files/usr/bin/termux-media-scan "${resolvedSrc}" 2>/dev/null`, () => {});
       }
 
       return (
