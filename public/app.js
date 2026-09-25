@@ -7,9 +7,42 @@ document.addEventListener('DOMContentLoaded', () => {
   const tabNavMain = document.getElementById('tabNavMain');
   const tabNavSettings = document.getElementById('tabNavSettings');
   const pageMain = document.getElementById('pageMain');
-  const pageSettings = document.getElementById('pageSettings');
+  const tabNavEditor = document.getElementById('tabNavEditor');
+  const pageEditor = document.getElementById('pageEditor');
   const btnJumpToSettings = document.getElementById('btnJumpToSettings');
   const btnBackToChat = document.getElementById('btnBackToChat');
+
+  // Code Editor Elements
+  const editorTextarea = document.getElementById('editorTextarea');
+  const editorLineNumbers = document.getElementById('editorLineNumbers');
+  const editorStatus = document.getElementById('editorStatus');
+  const editorFileInfo = document.getElementById('editorFileInfo');
+  const editorCursorPos = document.getElementById('editorCursorPos');
+  const btnReloadEditorFile = document.getElementById('btnReloadEditorFile');
+  const btnSaveEditorFile = document.getElementById('btnSaveEditorFile');
+  const btnToggleFileTree = document.getElementById('btnToggleFileTree');
+  const editorOpenTabs = document.getElementById('editorOpenTabs');
+  const btnEditorUndo = document.getElementById('btnEditorUndo');
+  const btnEditorRedo = document.getElementById('btnEditorRedo');
+  const btnEditorTab = document.getElementById('btnEditorTab');
+  const editorSidebar = document.getElementById('editorSidebar');
+  const editorTreeRootName = document.getElementById('editorTreeRootName');
+  const btnNewFile = document.getElementById('btnNewFile');
+  const btnNewFolder = document.getElementById('btnNewFolder');
+  const btnRefreshTree = document.getElementById('btnRefreshTree');
+  const sidebarCreateBox = document.getElementById('sidebarCreateBox');
+  const sidebarCreateTypeLabel = document.getElementById('sidebarCreateTypeLabel');
+  const inputNewItemName = document.getElementById('inputNewItemName');
+  const btnConfirmCreateItem = document.getElementById('btnConfirmCreateItem');
+  const btnCancelCreateItem = document.getElementById('btnCancelCreateItem');
+  const fileTreeContainer = document.getElementById('fileTreeContainer');
+
+  let currentEditorFile = 'public/style.css';
+  let editorOriginalContent = '';
+  let openEditorFiles = ['public/style.css', 'public/index.html', 'public/app.js'];
+  let editorUndoStack = [];
+  let editorRedoStack = [];
+  let creatingItemType = 'file';
 
   // Main Page Elements
   const mainActiveModelText = document.getElementById('mainActiveModelText');
@@ -130,16 +163,18 @@ document.addEventListener('DOMContentLoaded', () => {
   async function init() {
     setupNavigation();
     setupEventListeners();
+    setupCodeEditor();
     await fetchConfig();
     await fetchMemory();
     await fetchLogs();
     if (promptInput) promptInput.focus();
   }
 
-  // --- 2-PAGE NAVIGATION SYSTEM ---
+  // --- 3-PAGE NAVIGATION SYSTEM (Chat, Settings, Code Editor) ---
   function setupNavigation() {
     tabNavMain.addEventListener('click', () => showPage('main'));
     tabNavSettings.addEventListener('click', () => showPage('settings'));
+    if (tabNavEditor) tabNavEditor.addEventListener('click', () => showPage('editor'));
     if (btnJumpToSettings) btnJumpToSettings.addEventListener('click', () => showPage('settings'));
     if (btnBackToChat) btnBackToChat.addEventListener('click', () => showPage('main'));
 
@@ -148,6 +183,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const path = window.location.pathname.toLowerCase();
     if (hash === '#settings' || path === '/settings' || path === '/models' || path === '/providers') {
       showPage('settings', false);
+    } else if (hash === '#editor' || path === '/editor') {
+      showPage('editor', false);
     } else {
       showPage('main', false);
     }
@@ -155,22 +192,35 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('hashchange', () => {
       const h = window.location.hash.toLowerCase();
       if (h === '#settings') showPage('settings', false);
+      else if (h === '#editor') showPage('editor', false);
       else showPage('main', false);
     });
   }
 
   function showPage(pageName, updateHash = true) {
+    pageMain.style.display = 'none';
+    const pageSettingsEl = document.getElementById('pageSettings');
+    if (pageSettingsEl) pageSettingsEl.style.display = 'none';
+    if (pageEditor) pageEditor.style.display = 'none';
+
+    tabNavMain.classList.remove('active');
+    tabNavSettings.classList.remove('active');
+    if (tabNavEditor) tabNavEditor.classList.remove('active');
+
     if (pageName === 'settings') {
-      pageMain.style.display = 'none';
-      pageSettings.style.display = 'flex';
+      if (pageSettingsEl) pageSettingsEl.style.display = 'flex';
       tabNavSettings.classList.add('active');
-      tabNavMain.classList.remove('active');
       if (updateHash) window.location.hash = '#settings';
+    } else if (pageName === 'editor') {
+      if (pageEditor) pageEditor.style.display = 'flex';
+      if (tabNavEditor) tabNavEditor.classList.add('active');
+      if (updateHash) window.location.hash = '#editor';
+      if (!editorTextarea || !editorTextarea.value) {
+        loadEditorFile(currentEditorFile);
+      }
     } else {
-      pageSettings.style.display = 'none';
       pageMain.style.display = 'flex';
       tabNavMain.classList.add('active');
-      tabNavSettings.classList.remove('active');
       if (updateHash) window.location.hash = '#chat';
     }
   }
@@ -705,12 +755,23 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  function formatCwdDisplay(fullPath) {
+    if (!fullPath) return 'home';
+    const clean = fullPath.replace(/\/+$/, '');
+    if (!clean) return '/';
+    const parts = clean.split('/');
+    return parts[parts.length - 1] || 'home';
+  }
+
   function renderMemory(data) {
     if (!data) return;
 
-    // Update CWD
+    // Update CWD (Show only current folder name)
     if (data.cwd) {
-      if (mainCwdText) mainCwdText.textContent = data.cwd;
+      if (mainCwdText) {
+        mainCwdText.textContent = formatCwdDisplay(data.cwd);
+        mainCwdText.title = data.cwd;
+      }
       if (inputCwdPath) inputCwdPath.value = data.cwd;
     }
 
@@ -1287,6 +1348,16 @@ document.addEventListener('DOMContentLoaded', () => {
         showToast('🔄 Page reload ho raha hai...');
         setTimeout(() => window.location.reload(), 600);
       }
+    } else if (event.type === 'switch_tab') {
+      showPage(event.tab || 'editor');
+    } else if (event.type === 'cwd_changed') {
+      if (event.cwd) {
+        if (mainCwdText) {
+          mainCwdText.textContent = formatCwdDisplay(event.cwd);
+          mainCwdText.title = event.cwd;
+        }
+        if (inputCwdPath) inputCwdPath.value = event.cwd;
+      }
     } else if (event.type === 'thought') {
       bubble.innerHTML = `<div style="color:var(--text-muted); font-size:12px; margin-bottom:6px;"><em>${escapeHtml(event.content)}</em></div>`;
     } else if (event.type === 'done') {
@@ -1373,5 +1444,529 @@ document.addEventListener('DOMContentLoaded', () => {
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#039;');
+  }
+
+  // --- IN-APP FILESYSTEM CODE EDITOR ---
+  function setupCodeEditor() {
+    if (!editorTextarea) return;
+
+    // Toggle File Explorer Sidebar
+    if (btnToggleFileTree && editorSidebar) {
+      btnToggleFileTree.addEventListener('click', () => {
+        editorSidebar.classList.toggle('collapsed');
+      });
+    }
+
+    // Refresh Tree
+    if (btnRefreshTree) {
+      btnRefreshTree.addEventListener('click', fetchEditorTree);
+    }
+
+    // New File creation prompt
+    if (btnNewFile) {
+      btnNewFile.addEventListener('click', () => {
+        showSidebarCreate('file');
+      });
+    }
+
+    // New Folder creation prompt
+    if (btnNewFolder) {
+      btnNewFolder.addEventListener('click', () => {
+        showSidebarCreate('folder');
+      });
+    }
+
+    // Cancel inline creation
+    if (btnCancelCreateItem) {
+      btnCancelCreateItem.addEventListener('click', hideSidebarCreate);
+    }
+
+    // Confirm inline creation
+    if (btnConfirmCreateItem) {
+      btnConfirmCreateItem.addEventListener('click', handleConfirmCreateItem);
+    }
+    if (inputNewItemName) {
+      inputNewItemName.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') handleConfirmCreateItem();
+        else if (e.key === 'Escape') hideSidebarCreate();
+      });
+    }
+
+    // Undo / Redo / Tab Buttons
+    if (btnEditorUndo) {
+      btnEditorUndo.addEventListener('click', handleEditorUndo);
+    }
+    if (btnEditorRedo) {
+      btnEditorRedo.addEventListener('click', handleEditorRedo);
+    }
+    if (btnEditorTab) {
+      btnEditorTab.addEventListener('click', insertTabSpaces);
+    }
+
+    // Save button
+    if (btnSaveEditorFile) {
+      btnSaveEditorFile.addEventListener('click', saveEditorFile);
+    }
+
+    // Reload button
+    if (btnReloadEditorFile) {
+      btnReloadEditorFile.addEventListener('click', () => {
+        loadEditorFile(currentEditorFile);
+      });
+    }
+
+    // Editor Textarea event listeners
+    editorTextarea.addEventListener('input', () => {
+      pushUndoState(editorTextarea.value);
+      updateEditorLineNumbers();
+      updateEditorCursorPos();
+      checkEditorDirty();
+    });
+
+    editorTextarea.addEventListener('keyup', updateEditorCursorPos);
+    editorTextarea.addEventListener('click', updateEditorCursorPos);
+
+    // Sync line numbers scrolling
+    editorTextarea.addEventListener('scroll', () => {
+      if (editorLineNumbers) {
+        editorLineNumbers.scrollTop = editorTextarea.scrollTop;
+      }
+    });
+
+    // Keyboard shortcuts (Ctrl+S / Cmd+S to save, Tab to indent, Ctrl+Z / Ctrl+Y)
+    editorTextarea.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        saveEditorFile();
+      } else if (e.key === 'Tab') {
+        e.preventDefault();
+        insertTabSpaces();
+      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+        if (e.shiftKey) {
+          e.preventDefault();
+          handleEditorRedo();
+        } else {
+          e.preventDefault();
+          handleEditorUndo();
+        }
+      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
+        e.preventDefault();
+        handleEditorRedo();
+      }
+    });
+
+    renderOpenEditorTabs();
+    fetchEditorTree();
+  }
+
+  function showSidebarCreate(type) {
+    if (!sidebarCreateBox || !inputNewItemName) return;
+    creatingItemType = type;
+    if (sidebarCreateTypeLabel) {
+      sidebarCreateTypeLabel.textContent = type === 'folder' ? '📁 New Folder:' : '📄 New File:';
+    }
+    inputNewItemName.placeholder = type === 'folder' ? 'e.g. assets ya components' : 'e.g. script.js';
+    inputNewItemName.value = '';
+    sidebarCreateBox.style.display = 'flex';
+    if (editorSidebar && editorSidebar.classList.contains('collapsed')) {
+      editorSidebar.classList.remove('collapsed');
+    }
+    inputNewItemName.focus();
+  }
+
+  function hideSidebarCreate() {
+    if (sidebarCreateBox) sidebarCreateBox.style.display = 'none';
+  }
+
+  async function handleConfirmCreateItem() {
+    if (!inputNewItemName) return;
+    const name = inputNewItemName.value.trim();
+    if (!name) return;
+
+    hideSidebarCreate();
+    try {
+      const endpoint = creatingItemType === 'folder' ? '/api/editor/create-folder' : '/api/editor/create-file';
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: name })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Creation failed');
+      }
+
+      showToast(`✅ ${data.message}`);
+      await fetchEditorTree();
+
+      if (creatingItemType === 'file' && data.file) {
+        openEditorFile(data.file);
+      }
+    } catch (err) {
+      showToast(`❌ Error: ${err.message}`);
+    }
+  }
+
+  async function fetchEditorTree() {
+    if (!fileTreeContainer) return;
+    try {
+      fileTreeContainer.innerHTML = `<div style="padding: 10px; color: var(--text-muted); font-size: 11px;">Loading explorer...</div>`;
+      const res = await fetch('/api/editor/tree');
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error || 'Failed to load tree');
+
+      if (editorTreeRootName) editorTreeRootName.textContent = data.name || 'jena2';
+      fileTreeContainer.innerHTML = '';
+      renderFileTreeItems(data.items, fileTreeContainer);
+    } catch (err) {
+      fileTreeContainer.innerHTML = `<div style="padding: 10px; color: #f87171; font-size: 11px;">❌ Tree Error: ${err.message}</div>`;
+    }
+  }
+
+  function getFileIcon(filename) {
+    if (!filename) return '📄';
+    const ext = filename.split('.').pop().toLowerCase();
+    switch (ext) {
+      case 'html': return '📄';
+      case 'css': return '🎨';
+      case 'js': return '⚡';
+      case 'json': return '📦';
+      case 'md': return '📝';
+      case 'py': return '🐍';
+      case 'sh': return '🐚';
+      case 'png':
+      case 'jpg':
+      case 'jpeg':
+      case 'svg': return '🖼️';
+      default: return '📄';
+    }
+  }
+
+  function renderFileTreeItems(items, container) {
+    if (!items || items.length === 0) {
+      container.innerHTML = `<div style="padding: 8px 10px; font-size: 11px; color: var(--text-muted);">Khali folder</div>`;
+      return;
+    }
+
+    items.forEach(item => {
+      if (item.isDir) {
+        const folderEl = document.createElement('div');
+        folderEl.className = 'tree-folder';
+
+        const headerEl = document.createElement('div');
+        headerEl.className = 'tree-folder-header';
+        headerEl.innerHTML = `
+          <div class="tree-folder-title">
+            <span class="tree-folder-arrow">📁</span>
+            <span>${escapeHtml(item.name)}</span>
+          </div>
+          <button type="button" class="btn-tree-delete" title="Delete Folder">&times;</button>
+        `;
+
+        const childrenEl = document.createElement('div');
+        childrenEl.className = 'tree-folder-children';
+        if (item.children && item.children.length > 0) {
+          renderFileTreeItems(item.children, childrenEl);
+        } else {
+          childrenEl.innerHTML = `<div style="padding: 2px 6px; font-size: 10.5px; color: var(--text-muted);">Khali</div>`;
+        }
+
+        // Click to expand / collapse
+        headerEl.querySelector('.tree-folder-title').addEventListener('click', () => {
+          const isHidden = childrenEl.style.display === 'none';
+          childrenEl.style.display = isHidden ? 'flex' : 'none';
+          headerEl.querySelector('.tree-folder-arrow').textContent = isHidden ? '📂' : '📁';
+        });
+
+        // Delete folder button
+        const delBtn = headerEl.querySelector('.btn-tree-delete');
+        delBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          deleteFileOrFolder(item.path, true);
+        });
+
+        folderEl.appendChild(headerEl);
+        folderEl.appendChild(childrenEl);
+        container.appendChild(folderEl);
+      } else {
+        const fileEl = document.createElement('div');
+        fileEl.className = `tree-file-item ${item.path === currentEditorFile ? 'active' : ''}`;
+        fileEl.innerHTML = `
+          <div class="tree-file-title" title="${escapeHtml(item.path)} (${(item.size / 1024).toFixed(1)} KB)">
+            <span>${getFileIcon(item.name)}</span>
+            <span class="tree-file-name">${escapeHtml(item.name)}</span>
+          </div>
+          <button type="button" class="btn-tree-delete" title="Delete File">&times;</button>
+        `;
+
+        fileEl.querySelector('.tree-file-title').addEventListener('click', () => {
+          openEditorFile(item.path);
+        });
+
+        fileEl.querySelector('.btn-tree-delete').addEventListener('click', (e) => {
+          e.stopPropagation();
+          deleteFileOrFolder(item.path, false);
+        });
+
+        container.appendChild(fileEl);
+      }
+    });
+  }
+
+  async function deleteFileOrFolder(targetPath, isDir) {
+    const itemType = isDir ? 'Folder' : 'File';
+    if (!confirm(`Kya aap waqayi yeh ${itemType} delete karna chahte hain?\n"${targetPath}"`)) {
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/editor/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: targetPath })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error || 'Delete failed');
+
+      showToast(`🗑️ ${data.message}`);
+
+      // If active file was deleted, switch to another file
+      if (currentEditorFile === targetPath) {
+        openEditorFiles = openEditorFiles.filter(f => f !== targetPath);
+        if (openEditorFiles.length === 0) openEditorFiles.push('public/style.css');
+        openEditorFile(openEditorFiles[0]);
+      } else {
+        openEditorFiles = openEditorFiles.filter(f => f !== targetPath);
+        renderOpenEditorTabs();
+      }
+
+      await fetchEditorTree();
+    } catch (err) {
+      showToast(`❌ Delete Error: ${err.message}`);
+    }
+  }
+
+  function openEditorFile(file) {
+    if (!openEditorFiles.includes(file)) {
+      openEditorFiles.push(file);
+    }
+    renderOpenEditorTabs();
+    loadEditorFile(file);
+
+    // Highlight active in tree
+    document.querySelectorAll('.tree-file-item').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.tree-file-item').forEach(el => {
+      const title = el.querySelector('.tree-file-title');
+      if (title && title.getAttribute('title')?.startsWith(file)) {
+        el.classList.add('active');
+      }
+    });
+  }
+
+  function renderOpenEditorTabs() {
+    if (!editorOpenTabs) return;
+    editorOpenTabs.innerHTML = '';
+
+    openEditorFiles.forEach(file => {
+      const tab = document.createElement('div');
+      tab.className = `editor-file-tab ${file === currentEditorFile ? 'active' : ''}`;
+      const baseName = file.split('/').pop();
+      tab.innerHTML = `
+        <span class="editor-tab-name" title="${escapeHtml(file)}">${getFileIcon(baseName)} ${escapeHtml(baseName)}</span>
+        <span class="editor-tab-close" title="Close Tab">&times;</span>
+      `;
+
+      tab.querySelector('.editor-tab-name').addEventListener('click', () => {
+        if (file === currentEditorFile) return;
+        if (editorOriginalContent && editorTextarea.value !== editorOriginalContent) {
+          if (!confirm(`Unsaved changes mojood hain. Kya aap ${file} par switch karna chahte hain?`)) return;
+        }
+        openEditorFile(file);
+      });
+
+      tab.querySelector('.editor-tab-close').addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeEditorTab(file);
+      });
+
+      editorOpenTabs.appendChild(tab);
+    });
+  }
+
+  function closeEditorTab(file) {
+    if (openEditorFiles.length <= 1) {
+      showToast('⚠️ Kam az kam aik file tab khuli rehni chahiye.');
+      return;
+    }
+    openEditorFiles = openEditorFiles.filter(f => f !== file);
+    if (currentEditorFile === file) {
+      openEditorFile(openEditorFiles[openEditorFiles.length - 1]);
+    } else {
+      renderOpenEditorTabs();
+    }
+  }
+
+  async function loadEditorFile(file) {
+    if (!editorTextarea) return;
+    try {
+      if (editorStatus) {
+        editorStatus.textContent = 'Loading...';
+        editorStatus.classList.remove('unsaved');
+      }
+      const res = await fetch(`/api/editor/file?file=${encodeURIComponent(file)}`);
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Failed to load file');
+      }
+
+      editorTextarea.value = data.content;
+      editorOriginalContent = data.content;
+      currentEditorFile = data.file;
+
+      editorUndoStack = [data.content];
+      editorRedoStack = [];
+
+      if (editorFileInfo) {
+        editorFileInfo.textContent = `${data.file} • ${(data.size / 1024).toFixed(1)} KB • UTF-8`;
+      }
+      if (editorStatus) {
+        editorStatus.textContent = '✓ Loaded';
+        editorStatus.classList.remove('unsaved');
+      }
+      updateEditorLineNumbers();
+      updateEditorCursorPos();
+      renderOpenEditorTabs();
+    } catch (err) {
+      showToast(`❌ Error: ${err.message}`);
+      if (editorStatus) editorStatus.textContent = 'Load Error';
+    }
+  }
+
+  async function saveEditorFile() {
+    if (!editorTextarea) return;
+    try {
+      if (editorStatus) editorStatus.textContent = 'Saving...';
+      const res = await fetch('/api/editor/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          file: currentEditorFile,
+          content: editorTextarea.value
+        })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Failed to save file');
+      }
+
+      editorOriginalContent = editorTextarea.value;
+      if (editorStatus) {
+        editorStatus.textContent = '✓ Saved';
+        editorStatus.classList.remove('unsaved');
+      }
+      showToast(`💾 ${data.message || 'File saved successfully!'}`);
+
+      // Apply live hot reload
+      if (data.reloadTarget === 'css') {
+        reloadStylesheets();
+        showToast('🎨 Stylesheet dynamically live updated!');
+      } else if (data.reloadTarget === 'page') {
+        showToast('🔄 Browser reloading to reflect HTML changes...');
+        setTimeout(() => window.location.reload(), 800);
+      }
+    } catch (err) {
+      showToast(`❌ Save Error: ${err.message}`);
+      if (editorStatus) editorStatus.textContent = 'Save Failed';
+    }
+  }
+
+  function updateEditorLineNumbers() {
+    if (!editorLineNumbers || !editorTextarea) return;
+    const lines = editorTextarea.value.split('\n').length;
+    editorLineNumbers.innerText = Array.from({ length: lines }, (_, i) => i + 1).join('\n');
+  }
+
+  function updateEditorCursorPos() {
+    if (!editorCursorPos || !editorTextarea) return;
+    const pos = editorTextarea.selectionStart;
+    const textBefore = editorTextarea.value.substring(0, pos);
+    const line = textBefore.split('\n').length;
+    const col = pos - textBefore.lastIndexOf('\n');
+    editorCursorPos.textContent = `Line ${line}, Col ${col} • ${editorTextarea.value.length} chars`;
+  }
+
+  // --- UNDO / REDO / TAB HELPERS ---
+  let undoTimeout = null;
+  function pushUndoState(val) {
+    clearTimeout(undoTimeout);
+    undoTimeout = setTimeout(() => {
+      if (editorUndoStack.length === 0 || editorUndoStack[editorUndoStack.length - 1] !== val) {
+        editorUndoStack.push(val);
+        if (editorUndoStack.length > 50) editorUndoStack.shift();
+        editorRedoStack = [];
+      }
+    }, 250);
+  }
+
+  function handleEditorUndo() {
+    if (!editorTextarea) return;
+    if (editorUndoStack.length > 1) {
+      const current = editorUndoStack.pop();
+      editorRedoStack.push(current);
+      const prev = editorUndoStack[editorUndoStack.length - 1];
+      editorTextarea.value = prev;
+      updateEditorLineNumbers();
+      updateEditorCursorPos();
+      checkEditorDirty();
+      showToast('↶ Undo');
+    } else {
+      document.execCommand('undo');
+      updateEditorLineNumbers();
+      updateEditorCursorPos();
+      checkEditorDirty();
+    }
+  }
+
+  function handleEditorRedo() {
+    if (!editorTextarea) return;
+    if (editorRedoStack.length > 0) {
+      const next = editorRedoStack.pop();
+      editorUndoStack.push(next);
+      editorTextarea.value = next;
+      updateEditorLineNumbers();
+      updateEditorCursorPos();
+      checkEditorDirty();
+      showToast('↷ Redo');
+    } else {
+      document.execCommand('redo');
+      updateEditorLineNumbers();
+      updateEditorCursorPos();
+      checkEditorDirty();
+    }
+  }
+
+  function insertTabSpaces() {
+    if (!editorTextarea) return;
+    const start = editorTextarea.selectionStart;
+    const end = editorTextarea.selectionEnd;
+    editorTextarea.value = editorTextarea.value.substring(0, start) + '  ' + editorTextarea.value.substring(end);
+    editorTextarea.selectionStart = editorTextarea.selectionEnd = start + 2;
+    updateEditorLineNumbers();
+    updateEditorCursorPos();
+    checkEditorDirty();
+    pushUndoState(editorTextarea.value);
+    editorTextarea.focus();
+  }
+
+  function checkEditorDirty() {
+    if (!editorStatus || !editorTextarea) return;
+    const isDirty = editorTextarea.value !== editorOriginalContent;
+    if (isDirty) {
+      editorStatus.textContent = '● Unsaved';
+      editorStatus.classList.add('unsaved');
+    } else {
+      editorStatus.textContent = '✓ Saved';
+      editorStatus.classList.remove('unsaved');
+    }
   }
 });

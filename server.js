@@ -565,6 +565,28 @@ class LocalEngine {
       return { type: 'learned_op', op: learnedOp };
     }
 
+    // Terminal / Shell Execution Intent (Offline Direct Shell Execution)
+    const tPattern = /^(?:terminal\s*(?:main|mein)?|bash|sh|cmd|command)\s*[:\s]+(.+)$/i;
+    const tPatternRun = /^(?:run|chalao|execute)\s+(?:terminal\s+(?:command\s+)?|command\s+|bash\s+)(.+)$/i;
+    const tPatternCmd = /^command\s+(?:run\s+karo|chalao|execute)\s+(.+)$/i;
+    const origQuery = query.trim().replace(/^(?:hey|suno|o|ai)?\s*jena\b[:,\s]*/i, '').trim();
+    const tm = origQuery.match(tPattern) || origQuery.match(tPatternRun) || origQuery.match(tPatternCmd);
+    if (tm) {
+      let raw = tm[1].trim();
+      let tAutoYes = false;
+      if (/(?:aor\s+)?(?:har\s+option\s+par\s+y\s+karo|har\s+jagah\s+y|har\s+baar\s+y|auto\s+yes|har\s+sawal\s+par\s+y)/i.test(raw)) {
+        tAutoYes = true;
+        raw = raw.replace(/(?:aor\s+)?(?:har\s+option\s+par\s+y\s+karo|har\s+jagah\s+y|har\s+baar\s+y|auto\s+yes|har\s+sawal\s+par\s+y)/i, '').trim();
+      }
+      raw = raw.replace(/\s+(?:chalao|run\s+karo|execute\s+karo|kardo|karein|run|execute)\s*$/i, '').trim();
+      if ((raw.startsWith('"') && raw.endsWith('"')) || (raw.startsWith("'") && raw.endsWith("'"))) {
+        raw = raw.slice(1, -1).trim();
+      }
+      if (raw) {
+        return { type: 'terminal_exec', command: raw, autoYes: tAutoYes };
+      }
+    }
+
     // Page Reload / Refresh trigger
     if (
       /^(?:page\s+|browser\s+|screen\s+)?(?:reload\s+refresh|refresh\s+reload|reload|refresh)(?:\s+karo|\s+karein|\s+kardo|\s+kardain)?$/i.test(q) ||
@@ -575,23 +597,40 @@ class LocalEngine {
       return 'reload_page';
     }
 
+    // Troubleshooting / Changes Visibility Query (e.g. "changes dikhaye nahi de rahi", "styling apply nahi hui")
+    if (
+      /(?:changes?|tabdeeli|styling|styles?|border|color)\s+(?:dikh|nazar|show|apply|dekha|de\s+rahi|nahi\s+ho\s+rahi|nahi\s+aa\s+rahi|nahi\s+dikh|nahi\s+de\s+rahi)/i.test(q) ||
+      /(?:dikhaye\s+nahi\s+de\s+rahi|nazar\s+nahi\s+aa\s+rahi|show\s+nahi\s+ho\s+rahi|dikha\s+nahi\s+raha)/i.test(q)
+    ) {
+      return 'troubleshoot_changes';
+    }
+
+    // Code Editor / Manual User Editing Intent
+    if (
+      /(?:code\s*editor|manual\s*edit|editor\s*kholo|open\s*editor|html\s*edit|css\s*edit|manual\s*user\s*editing|editor\s*dikhao|editor\s*install)/i.test(q) ||
+      /^(?:editor|code editor)$/i.test(q)
+    ) {
+      return 'open_editor';
+    }
+
     // 4. GUI & Components Code / Styling Inspection
     if (
-      /(?:code|css|html|styling|styles?|color|background|bg)\s+(?:dikhao|batao|kya hai|kya hay|check karo)/i.test(q) ||
+      /(?:code|css|html|styling|styles?|color|background|bg|border|radius|padding|size|width|height)\s+(?:dikhao|batao|kya hai|kya hay|check karo)/i.test(q) ||
       /(?:components?|elements?)\s*(?:ki\s+list|dikhao|batao|tamam|all)/i.test(q) ||
-      /(?:token\s*cards?|header|navbar|switch|hero|button|input|modal|cards?|body|background|bg)\s*(?:ka|ki)?\s*(?:code|css|html|styling|styles?|color|background)?\s*(?:kya hai|kya hay|dikhao|batao|check)/i.test(q) ||
-      /(?:kya\s+color\s+hai|color\s+kya\s+hay|color\s+kya\s+hai)/i.test(q)
+      /(?:token\s*cards?|header|logo|avatar|brand|navbar|switch|hero|button|input|modal|cards?|body|background|bg|nav\s*tabs)\s*(?:ka|ki|ke)?\s*(?:code|css|html|styling|styles?|color|background|border|radius|padding|size|width)?\s*(?:kya hai|kya hay|dikhao|batao|check)/i.test(q) ||
+      /(?:kya\s+color\s+hai|color\s+kya\s+hay|color\s+kya\s+hai|border\s+kya\s+hay|border\s+color\s+kya\s+hay)/i.test(q)
     ) {
       return 'inspect_component';
     }
 
     // 5. GUI & Components Live Styling Mutation (Size, Padding, Borders, Background, Colors, Radius, Width, Height, Margin, Gap)
     if (
-      /(?:token\s*cards?|header|navbar|switch|hero|button|input|modal|cards?|cwd\s*bar|body|page|background|screen)\s*(?:ka|ki|ke|ko)?\s*(?:size|padding|border|color|background|bg|radius|font|height|width|margin|gap).*?(?:badlo|change|kardo|rakho|set|badha|chhota|barha|bara|kam|zyada|ghata)/i.test(q) ||
-      /(?:badlo|change|set|update)\s+(?:token\s*cards?|header|hero|button|input|modal|cards?|body|page|background)\s*(?:ka|ki)?\s*(?:size|padding|border|color|background|radius|width|height)/i.test(q) ||
-      /(?:body|background|page|screen)\s*(?:ka|ki|ke)?\s*(?:color|background|bg)?\s*(?:black|white|dark|cyan|green|purple|red|blue|gray|#|[a-z]+)\s*(?:kardo|rakho|set|badlo)/i.test(q) ||
-      /(?:size|padding|width|height|border|margin)\s*(?:badha|barha|chhota|kam|zyada|ghata)/i.test(q) ||
-      /(?:padding|border|border-radius|radius|width|height|background|color)\s+[0-9a-z%pxrem\s#]+\s*(?:kardo|rakho|set)/i.test(q)
+      /(?:token\s*cards?|header|logo|avatar|brand|navbar|switch|hero|button|input|modal|cards?|cwd\s*bar|body|page|background|screen|app-header|avatar-glow)\s*(?:ka|ki|ke|ko)?\s*(?:size|padding|border|color|background|bg|radius|font|height|width|margin|gap).*?(?:badlo|change|kardo|rakho|set|badha|chhota|barha|bara|kam|zyada|ghata)/i.test(q) ||
+      /<[a-z0-9_-]+\s+class=["'][^"']+["']>\s*iska\s+(?:border|color|background|size|padding)/i.test(q) ||
+      /(?:badlo|change|set|update)\s+(?:token\s*cards?|header|logo|avatar|brand|hero|button|input|modal|cards?|body|page|background)\s*(?:ka|ki)?\s*(?:size|padding|border|color|background|radius|width|height)/i.test(q) ||
+      /(?:body|background|page|screen)\s*(?:ka|ki|ke)?\s*(?:color|background|bg)?\s*(?:black|white|dark|cyan|green|purple|red|blue|gray|peach|brown|#|[a-z]+)\s*(?:kardo|rakho|set|badlo)/i.test(q) ||
+      /(?:border|padding|border-radius|radius|width|height|background|color)\s+[0-9a-z%pxrem\s#]+\s*(?:kardo|rakho|set)/i.test(q) ||
+      /(?:border\s+color|border\s+solid|border\s+size|border\s+width).*?(?:kardo|rakho|set)/i.test(q)
     ) {
       return 'modify_component';
     }
@@ -643,7 +682,15 @@ class LocalEngine {
     }
 
     // 9. Filesystem Navigation
-    if (/^cd(\s+.*)?$/i.test(q) || /^folder badlo(\s+.*)?$/i.test(q) || /^andar jao(\s+.*)?$/i.test(q)) {
+    if (
+      /^cd(\s+.*)?$/i.test(q) ||
+      /^folder\s+badlo(\s+.*)?$/i.test(q) ||
+      /^andar\s+jao(\s+.*)?$/i.test(q) ||
+      /^(?:go\s+to|enter|switch\s+to|open)\s+(?:folder\s+|directory\s+)?/i.test(q) ||
+      /.+?\s+(?:folder\s+)?(?:main|mein|par)\s+(?:jao|chalo|ghuso)$/i.test(q) ||
+      /^(?:peeche|back|bahir|bahr)\s+(?:jao|aao|niklo)$/i.test(q) ||
+      /^(?:home|root)\s+(?:folder\s+)?(?:main\s+jao|par\s+jao)$/i.test(q)
+    ) {
       return 'cd';
     }
     if (/^(pwd|kahan khari ho|kahan ho|current directory|current path)$/i.test(q)) {
@@ -691,6 +738,9 @@ class LocalEngine {
     if (typeof intent === 'object' && intent.type === 'learned_op') {
       return await this.executeLearnedOperation(intent.op);
     }
+    if (typeof intent === 'object' && intent.type === 'terminal_exec') {
+      return await this.executeTerminalCommand(intent.command, intent.autoYes);
+    }
 
     switch (intent) {
       case 'teach':
@@ -709,6 +759,17 @@ class LocalEngine {
       }
       case 'reload_page':
         return '🔄 **Page Refresh:** Browser page refresh initiate ho raha hai...';
+      case 'troubleshoot_changes':
+        return this.troubleshootChanges(query);
+      case 'open_editor':
+        return `🛠️ **Jena Manual Code Editor (HTML & CSS):**\n\n` +
+               `Main ne aapke GUI mein live **Code Editor** install kar diya hai!\n\n` +
+               `### 🌟 Features & Manual Editing Guide:\n` +
+               `- 🗂️ **File Selector Tabs:** Upar \`📄 index.html\`, \`🎨 style.css\`, aur \`⚡ app.js\` ke buttons se kisi bhi file ka live code load karein.\n` +
+               `- ✍️ **Direct In-App Editing:** Code editor mein line numbers aur tab spacing ke sath khud changes karein.\n` +
+               `- 💾 **Save & Instant Hot-Reload:** \`💾 Save & Apply\` button dabayein ya keyboard par \`Ctrl + S\` press karein, file direct disk par save ho kar live screen par refresh ho jayegi.\n` +
+               `- 🔄 **Revert / Reload:** Agar koi ghalti ho jaye to \`🔄 Reload\` se disk se original file wapas la sakte hain.\n\n` +
+               `*Aap upar navigation bar mein **🛠️ Code Editor** tab par click karke abhi manual editing shuru kar sakte hain!*`;
       case 'show_memory':
         return this.showMemory();
       case 'explain_gui':
@@ -795,6 +856,70 @@ class LocalEngine {
           `- ⌨️ **Command:** \`${op.command}\`\n\n` +
           `\`\`\`sh\n${body || '(Command executed successfully with no output)'}\n\`\`\`\n\n` +
           `*(Self-Learned offline operation bina kisi token ke run hua.)*`
+        );
+      });
+    });
+  }
+
+  // --- TERMINAL / SHELL EXECUTION ---
+  static executeTerminalCommand(cmd, autoYes = false) {
+    return new Promise(resolve => {
+      const trimmed = (cmd || '').trim();
+      if (!trimmed) {
+        return resolve('⚠️ Barah-e-karam koi valid terminal command batayein.');
+      }
+
+      // If user passed a cd command inside terminal execution
+      if (/^cd(\s+.*)?$/i.test(trimmed)) {
+        return resolve(this.changeDirectory(trimmed));
+      }
+
+      let execCmd = trimmed;
+      if (autoYes && !execCmd.startsWith('yes |')) {
+        execCmd = `yes | ${execCmd} -o Dpkg::Options::="--force-confnew"`;
+      }
+
+      const cwd = this.getCwd();
+      exec(execCmd, {
+        cwd,
+        timeout: 45000,
+        shell: '/data/data/com.termux/files/usr/bin/sh',
+        env: {
+          ...process.env,
+          HOME: HOME_DIR,
+          DEBIAN_FRONTEND: 'noninteractive'
+        }
+      }, (err, stdout, stderr) => {
+        const out = (stdout || '').trim();
+        const errOut = (stderr || '').trim();
+        let body = '';
+        if (out) body += out;
+        if (errOut) body += (body ? '\n' : '') + errOut;
+        if (err && !body) body = `Error: ${err.message}`;
+
+        if (body.length > 8000) {
+          const lines = body.split('\n');
+          if (lines.length > 80) {
+            body = `[...Truncated first ${lines.length - 80} lines...]\n` + lines.slice(-80).join('\n');
+          }
+        }
+
+        if (err) {
+          LogManager.logFailure({
+            command: execCmd,
+            type: 'TERMINAL_EXEC_FAILURE',
+            error: `${err.message}${errOut ? ` | stderr: ${errOut}` : ''}`,
+            cwd,
+            context: { originalCommand: cmd, autoYes }
+          });
+        }
+
+        resolve(
+          `⚡ **Jena Terminal Execution Output:**\n` +
+          `- 📍 **CWD:** \`${cwd}\`\n` +
+          `- ⌨️ **Command:** \`${execCmd}\`\n\n` +
+          `\`\`\`sh\n${body || '(Command successfully executed with no output)'}\n\`\`\`\n\n` +
+          `*(Command offline Termux environment par run hua.)*`
         );
       });
     });
@@ -888,9 +1013,43 @@ class LocalEngine {
   }
 
   // --- LOCAL FILESYSTEM NAVIGATION ---
+  static extractCdTarget(query) {
+    if (!query) return '';
+    let q = query.trim();
+    q = q.replace(/^(?:hey|suno|o|ai)?\s*jena\b[:,\s]*/i, '').trim();
+
+    // 1. "peeche jao", "back jao", "bahir aao", "bahr niklo" -> ".."
+    if (/^(?:peeche|back|bahir|bahr)\s+(?:jao|aao|niklo)$/i.test(q) || q.toLowerCase() === 'cd ..') {
+      return '..';
+    }
+
+    // 2. "home main jao", "home par jao", "home folder main jao" -> "~"
+    if (/^home\s+(?:folder\s+)?(?:main|par|mein)\s+(?:jao|chalo)$/i.test(q)) {
+      return '~';
+    }
+
+    // 3. "<folder> main jao", "<folder> folder main jao", "<folder> par jao"
+    let m = q.match(/^(.+?)\s+(?:folder\s+)?(?:main|mein|par)\s+(?:jao|chalo|ghuso)$/i);
+    if (m) {
+      let target = m[1].replace(/^(?:folder|directory)\s+/i, '').trim();
+      return target;
+    }
+
+    // 4. "go to folder <target>", "enter folder <target>", "switch to <target>"
+    m = q.match(/^(?:go\s+to|enter|switch\s+to|open)\s+(?:folder\s+|directory\s+)?(.+)$/i);
+    if (m) {
+      return m[1].trim();
+    }
+
+    // 5. Classic "cd <target>", "folder badlo <target>", "andar jao <target>"
+    let target = q.replace(/^(?:cd|folder\s+badlo|andar\s+jao)\s*/i, '').trim();
+    target = target.replace(/^(?:folder|directory)\s+/i, '').trim();
+    return target;
+  }
+
   static changeDirectory(query) {
-    let target = query.replace(/^(cd|folder badlo|andar jao)\s*/i, '').trim();
-    if (!target || target === '~') target = HOME_DIR;
+    let target = this.extractCdTarget(query);
+    if (!target || target === '~' || target.toLowerCase() === 'home') target = HOME_DIR;
     const dest = this.resolvePath(target);
 
     if (!fs.existsSync(dest)) {
@@ -1117,6 +1276,38 @@ class LocalEngine {
       htmlEndSearch: '</header>',
       desc: 'Top Application Header with Brand Logo, Navigation Tabs & Mode Switch'
     },
+    logo: {
+      names: ['logo', 'avatar', 'avatar glow', 'avatar-glow', 'brand logo', 'bot icon', 'bot logo', 'bot avatar', 'robot icon'],
+      selector: '.avatar-glow',
+      file: 'public/style.css',
+      htmlSearch: '<div class="avatar-glow">',
+      htmlEndSearch: '</div>',
+      desc: 'Brand Robot Logo & Avatar Glow in Header'
+    },
+    brand: {
+      names: ['brand', 'brand text', 'brand title', 'app title', 'jena title'],
+      selector: '.brand',
+      file: 'public/style.css',
+      htmlSearch: '<div class="brand">',
+      htmlEndSearch: '</div>\n      </div>',
+      desc: 'Brand Info, Jena Title & Version Tag'
+    },
+    nav_tabs: {
+      names: ['nav tabs', 'navigation tabs', 'tabs', 'tab bar', 'nav bar tabs', 'page tabs'],
+      selector: '.nav-tabs',
+      file: 'public/style.css',
+      htmlSearch: '<nav class="nav-tabs">',
+      htmlEndSearch: '</nav>',
+      desc: 'Top Navigation Tabs (Chat vs Providers & Models)'
+    },
+    header_actions: {
+      names: ['header actions', 'top actions', 'header buttons', 'top buttons'],
+      selector: '.header-actions',
+      file: 'public/style.css',
+      htmlSearch: '<div class="header-actions">',
+      htmlEndSearch: '</div>',
+      desc: 'Header Actions & Controls Bar'
+    },
     mode_switch: {
       names: ['mode switch', 'mode button', 'online offline switch', 'switch button', 'switch'],
       selector: '.mode-switch',
@@ -1217,20 +1408,35 @@ class LocalEngine {
 
   static findComponent(query) {
     const q = (query || '').toLowerCase();
+
+    // 1. Direct CSS Selector or clean class name match (e.g. .app-header, app-header, avatar-glow)
+    for (const key of Object.keys(this.COMPONENT_REGISTRY)) {
+      const comp = this.COMPONENT_REGISTRY[key];
+      const cleanSel = comp.selector.replace(/^[.#]/, '').toLowerCase();
+      if (q.includes(comp.selector.toLowerCase()) || q.includes(cleanSel)) {
+        return { key, ...comp };
+      }
+    }
+
+    // 2. Direct alias matching
     for (const key of Object.keys(this.COMPONENT_REGISTRY)) {
       const comp = this.COMPONENT_REGISTRY[key];
       for (const name of comp.names) {
         if (q.includes(name)) return { key, ...comp };
       }
     }
+
+    // 3. Fallback matching
+    if (q.includes('logo') || q.includes('avatar') || q.includes('icon') || q.includes('robot')) return { key: 'logo', ...this.COMPONENT_REGISTRY.logo };
+    if (q.includes('tab') || q.includes('nav')) return { key: 'nav_tabs', ...this.COMPONENT_REGISTRY.nav_tabs };
     if (q.includes('body') || q.includes('background') || q.includes('page background') || q.includes('bg color')) return { key: 'body', ...this.COMPONENT_REGISTRY.body };
     if (q.includes('token') || q.includes('cards')) return { key: 'token_card', ...this.COMPONENT_REGISTRY.token_card };
-    if (q.includes('header') || q.includes('nav')) return { key: 'header', ...this.COMPONENT_REGISTRY.header };
-    if (q.includes('input') || q.includes('textarea')) return { key: 'input_wrapper', ...this.COMPONENT_REGISTRY.input_wrapper };
-    if (q.includes('button') || q.includes('send')) return { key: 'send_button', ...this.COMPONENT_REGISTRY.send_button };
+    if (q.includes('header') || q.includes('top bar') || q.includes('navbar')) return { key: 'header', ...this.COMPONENT_REGISTRY.header };
+    if (q.includes('input') || q.includes('textarea')) return { key: 'input_box', ...this.COMPONENT_REGISTRY.input_box };
+    if (q.includes('button') || q.includes('send') || q.includes('bhejo')) return { key: 'send_button', ...this.COMPONENT_REGISTRY.send_button };
     if (q.includes('hero') || q.includes('welcome')) return { key: 'welcome_hero', ...this.COMPONENT_REGISTRY.welcome_hero };
-    if (q.includes('switch')) return { key: 'mode_switch', ...this.COMPONENT_REGISTRY.mode_switch };
-    if (q.includes('modal')) return { key: 'modal', ...this.COMPONENT_REGISTRY.modal };
+    if (q.includes('switch') || q.includes('mode')) return { key: 'mode_switch', ...this.COMPONENT_REGISTRY.mode_switch };
+    if (q.includes('modal') || q.includes('dialog')) return { key: 'modal', ...this.COMPONENT_REGISTRY.modal };
     return null;
   }
 
@@ -1262,6 +1468,145 @@ class LocalEngine {
       const updatedCss = cssContent.replace(oldBlock, newBlock);
       return { success: true, updatedCss, selector, property, oldValue: null, newValue, isNew: true };
     }
+  }
+
+  static getLuminance(hexOrRgb) {
+    if (!hexOrRgb) return 0;
+    let r = 0, g = 0, b = 0;
+    const clean = String(hexOrRgb).trim();
+    if (clean.startsWith('#')) {
+      const hex = clean.slice(1);
+      if (hex.length === 3) {
+        r = parseInt(hex[0] + hex[0], 16);
+        g = parseInt(hex[1] + hex[1], 16);
+        b = parseInt(hex[2] + hex[2], 16);
+      } else if (hex.length >= 6) {
+        r = parseInt(hex.substring(0, 2), 16);
+        g = parseInt(hex.substring(2, 4), 16);
+        b = parseInt(hex.substring(4, 6), 16);
+      }
+    } else {
+      const rgbMatch = clean.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
+      if (rgbMatch) {
+        r = parseInt(rgbMatch[1], 10);
+        g = parseInt(rgbMatch[2], 10);
+        b = parseInt(rgbMatch[3], 10);
+      }
+    }
+    return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  }
+
+  static parseBorderValue(input, existingRule = '') {
+    const str = (input || '').toLowerCase();
+    
+    // Check if user wants no border
+    if (/\b(?:none|no border|hata|khatam|remove|0px|0)\b/i.test(str)) {
+      return 'none';
+    }
+
+    // 1. Extract Width (e.g. 2px, 1.5px, 3px, 1rem)
+    let width = null;
+    const widthMatch = input.match(/(\d+(?:\.\d+)?(?:px|rem|em))/i);
+    if (widthMatch) {
+      width = widthMatch[1];
+    } else {
+      const sizeDigitMatch = input.match(/(?:size|width|motai)\s+(\d+)/i);
+      if (sizeDigitMatch) width = `${sizeDigitMatch[1]}px`;
+    }
+
+    // 2. Extract Style (solid, dashed, dotted, double, groove, ridge, inset, outset)
+    let style = null;
+    const styleMatch = input.match(/\b(solid|dashed|dotted|double|groove|ridge|inset|outset)\b/i);
+    if (styleMatch) {
+      style = styleMatch[1].toLowerCase();
+    }
+
+    // 3. Extract Color
+    let color = null;
+    const hexOrRgbMatch = input.match(/(#[0-9a-fA-F]{3,8}|rgba?\([^)]+\))/i);
+    if (hexOrRgbMatch) {
+      color = hexOrRgbMatch[1];
+    } else {
+      const colorMap = {
+        cyan: '#00d2ff', green: '#10b981', sabz: '#10b981', purple: '#9d4edd', jamni: '#9d4edd',
+        red: '#ef4444', surkh: '#ef4444', lal: '#ef4444', blue: '#3a7bd5', neela: '#3a7bd5',
+        dark: '#0a0d14', black: '#000000', kala: '#000000', white: '#ffffff', safed: '#ffffff',
+        gray: '#64748b', peach: '#f4d6c6', brown: '#6b2f2f', orange: '#f97316', yellow: '#eab308'
+      };
+      for (const [cName, hex] of Object.entries(colorMap)) {
+        if (new RegExp(`\\b${cName}\\b`, 'i').test(input)) {
+          color = hex;
+          break;
+        }
+      }
+    }
+
+    // Check existing rule in CSS to preserve existing width/style/color if omitted
+    let existingWidth = '1px';
+    let existingStyle = 'solid';
+    let existingColor = 'var(--border-color)';
+    if (existingRule) {
+      const exMatch = existingRule.match(/border(?:-bottom|-top|-left|-right)?\s*:\s*([^;]+);/i);
+      if (exMatch) {
+        const parts = exMatch[1].trim().split(/\s+/);
+        if (parts[0] && /\d+(?:px|rem|em)/i.test(parts[0])) existingWidth = parts[0];
+        if (parts[1] && /solid|dashed|dotted|double/i.test(parts[1])) existingStyle = parts[1];
+        if (parts.length > 2) existingColor = parts.slice(2).join(' ');
+      }
+    }
+
+    const finalWidth = width || (style || color ? existingWidth : '1px');
+    const finalStyle = style || existingStyle;
+    const finalColor = color || (width || style ? existingColor : 'var(--border-color)');
+
+    return `${finalWidth} ${finalStyle} ${finalColor}`.trim();
+  }
+
+  static troubleshootChanges(query) {
+    const cssPath = path.join(PUBLIC_DIR, 'style.css');
+    let cssContent = fs.readFileSync(cssPath, 'utf8');
+    let fixedIssues = [];
+
+    // Check for corrupt border rules like "border: color ...;"
+    const corruptBorder = cssContent.match(/border:\s*color\s*([^;]+);/i);
+    if (corruptBorder) {
+      const fixed = this.parseBorderValue(corruptBorder[1]);
+      cssContent = cssContent.replace(corruptBorder[0], `border: ${fixed};`);
+      fixedIssues.push(`Corrupt border rule theek ki: \`${corruptBorder[0]}\` ➔ \`border: ${fixed};\``);
+    }
+
+    // Check contrast if body background is light
+    const bgMatch = cssContent.match(/--bg-primary:\s*([^;]+);/i);
+    if (bgMatch) {
+      const lum = this.getLuminance(bgMatch[1].trim());
+      if (lum > 0.5) {
+        const textMatch = cssContent.match(/--text-primary:\s*([^;]+);/i);
+        if (textMatch && this.getLuminance(textMatch[1].trim()) > 0.5) {
+          cssContent = cssContent.replace(/--text-primary:\s*[^;]+;/i, '--text-primary: #1e293b;');
+          fixedIssues.push('Light background par readable text ke liye `--text-primary: #1e293b;` set kiya.');
+        }
+      }
+    }
+
+    fs.writeFileSync(cssPath, cssContent, 'utf8');
+
+    let msg = `🛠️ **Styling & Page Visibility Diagnostic Report:**\n\n`;
+    if (fixedIssues.length > 0) {
+      msg += `Maine issues detect karke auto-fix kar diye hain:\n`;
+      fixedIssues.forEach(iss => msg += `- ✅ ${iss}\n`);
+      msg += `\n`;
+    } else {
+      msg += `CSS stylesheet syntax bilkul valid hai.\n\n`;
+    }
+
+    const headerRule = this.extractCssRule(cssContent, '.app-header') || '';
+
+    msg += `📌 **Active CSS Configuration:**\n` +
+           `- **Header Selector (\`.app-header\`):**\n\`\`\`css\n${headerRule}\n\`\`\`\n` +
+           `- **Body Background:** \`${bgMatch ? bgMatch[1].trim() : '#0a0d14'}\`\n\n` +
+           `🔄 **Page & Stylesheet Hard-Reload:** Browser ko live hard-reload signal bhej diya gaya hai taake latest CSS rules screen par nazar aa sakein!`;
+
+    return msg;
   }
 
   static listComponents() {
@@ -1319,6 +1664,58 @@ class LocalEngine {
             htmlCode = htmlCode.slice(0, 1200) + '\n<!-- ... (truncated for brevity) -->';
           }
         }
+      }
+    }
+
+    // Check if query is asking for a specific CSS property (e.g. "logo ka border color kya hay", "background kya hay")
+    const isPropertyQuery = /(?:kya\s+hai|kya\s+hay|batao|check|kitna|kitni)\b/i.test(q) &&
+      /(?:border|background|bg|color|text\s*color|padding|margin|radius|shadow|size|width|height|font)/i.test(q);
+
+    if (isPropertyQuery && cssCode && cssCode !== 'CSS rule nahi mili.') {
+      let propDetails = [];
+      
+      if (/border/i.test(q)) {
+        const bMatch = cssCode.match(/border(?:-bottom|-top|-left|-right)?\s*:\s*([^;]+);/i);
+        const bcMatch = cssCode.match(/border-color\s*:\s*([^;]+);/i);
+        const brMatch = cssCode.match(/border-radius\s*:\s*([^;]+);/i);
+        const bsMatch = cssCode.match(/box-shadow\s*:\s*([^;]+);/i);
+        if (bMatch) propDetails.push(`- 🔲 **Border:** \`${bMatch[1].trim()}\``);
+        if (bcMatch) propDetails.push(`- 🎨 **Border Color:** \`${bcMatch[1].trim()}\``);
+        if (brMatch) propDetails.push(`- 📐 **Border Radius:** \`${brMatch[1].trim()}\``);
+        if (bsMatch) propDetails.push(`- ✨ **Box Shadow / Glow:** \`${bsMatch[1].trim()}\``);
+      }
+      
+      if (/background|bg/i.test(q)) {
+        const bgMatch = cssCode.match(/background(?:-color)?\s*:\s*([^;]+);/i);
+        if (bgMatch) propDetails.push(`- 🎨 **Background:** \`${bgMatch[1].trim()}\``);
+      }
+      
+      if (/(?:text\s*color|font\s*color|\bcolor\b)/i.test(q) && !/border|background|bg/i.test(q)) {
+        const cMatch = cssCode.match(/(?:^|[^-])color\s*:\s*([^;]+);/i);
+        if (cMatch) propDetails.push(`- 🔤 **Text Color:** \`${cMatch[1].trim()}\``);
+      }
+
+      if (/padding/i.test(q)) {
+        const pMatch = cssCode.match(/padding\s*:\s*([^;]+);/i);
+        if (pMatch) propDetails.push(`- 📏 **Padding:** \`${pMatch[1].trim()}\``);
+      }
+
+      if (/width|size/i.test(q) && !/border/i.test(q)) {
+        const wMatch = cssCode.match(/(?:max-)?width\s*:\s*([^;]+);/i);
+        if (wMatch) propDetails.push(`- ↔️ **Width:** \`${wMatch[1].trim()}\``);
+      }
+
+      if (/height/i.test(q)) {
+        const hMatch = cssCode.match(/(?:max-)?height\s*:\s*([^;]+);/i);
+        if (hMatch) propDetails.push(`- ↕️ **Height:** \`${hMatch[1].trim()}\``);
+      }
+
+      if (propDetails.length > 0) {
+        return (
+          `🔍 **${comp.desc} (\`${comp.selector}\`) Property Details:**\n\n` +
+          propDetails.join('\n') + '\n\n' +
+          `📌 **Current CSS Rule:**\n\`\`\`css\n${cssCode}\n\`\`\``
+        );
       }
     }
 
@@ -1438,10 +1835,23 @@ class LocalEngine {
             const bgImgRes = this.updateCssRule(updatedCss, 'body', 'background-image', 'none');
             if (bgImgRes.success) updatedCss = bgImgRes.updatedCss;
           }
+
+          // Auto-adjust text contrast based on background luminance
+          const lum = this.getLuminance(bgVal);
+          if (lum > 0.5) {
+            // Light background: set dark readable text
+            updatedCss = updatedCss.replace(/(--text-primary:\s*)([^;]+)(;)/i, '$1#1e293b$3');
+            updatedCss = updatedCss.replace(/(--text-secondary:\s*)([^;]+)(;)/i, '$1#475569$3');
+          } else {
+            // Dark background: set light readable text
+            updatedCss = updatedCss.replace(/(--text-primary:\s*)([^;]+)(;)/i, '$1#f8fafc$3');
+            updatedCss = updatedCss.replace(/(--text-secondary:\s*)([^;]+)(;)/i, '$1#94a3b8$3');
+          }
+
           fs.writeFileSync(cssPath, updatedCss, 'utf8');
           return `✅ **Application Body Ka Background Color Updated!**\n` +
                  `- 🎯 **Selector:** \`body\` / \`:root\`\n` +
-                 `- 🎨 **New Background Color:** \`${bgVal}\`\n\n` +
+                 `- 🎨 **New Background Color:** \`${bgVal}\` (${lum > 0.5 ? 'Light theme contrast applied' : 'Dark theme contrast applied'})\n\n` +
                  `⚡ **Dynamic Hot-Reload Applied:** Browser styling live update ho chuki hai!`;
         }
       }
@@ -1536,10 +1946,9 @@ class LocalEngine {
     }
 
     // 4. Check for border (with style, width, or color)
-    const borderMatch = q.match(/border\s+([^\n;]+?)(?:\s+kardo|\s+rakho|\s+set|$)/i);
-    if (borderMatch && !/radius|corner/i.test(borderMatch[0])) {
-      let borderVal = borderMatch[1].trim();
-      borderVal = borderVal.replace(/\bcyan\b/i, '#00d2ff').replace(/\bgreen\b/i, '#10b981').replace(/\bpurple\b/i, '#9d4edd').replace(/\bred\b/i, '#ef4444');
+    if (/(?:border|boundary)\b/i.test(q) && !/radius|corner/i.test(q)) {
+      const existingRule = this.extractCssRule(cssContent, comp.selector) || '';
+      const borderVal = this.parseBorderValue(q, existingRule);
       const res = this.updateCssRule(cssContent, comp.selector, 'border', borderVal);
       if (res.success) {
         fs.writeFileSync(cssPath, res.updatedCss, 'utf8');
@@ -3049,6 +3458,228 @@ function startServer() {
       }
     }
 
+    // Helper to resolve safe editor path (defaults to project dir: __dirname)
+    const resolveEditorPath = (reqPath) => {
+      if (!reqPath) return __dirname;
+      let clean = reqPath.trim();
+      let resolved;
+      if (path.isAbsolute(clean)) {
+        resolved = path.normalize(clean);
+      } else {
+        resolved = path.normalize(path.join(__dirname, clean));
+      }
+      const homeBoundary = '/data/data/com.termux/files/home';
+      if (!resolved.startsWith(homeBoundary) && !resolved.startsWith(__dirname)) {
+        throw new Error('Access Denied: Path outside allowed workspace');
+      }
+      return resolved;
+    };
+
+    // GET /api/editor/tree (Recursive/deep tree for File Explorer)
+    if (pathname === '/api/editor/tree' && method === 'GET') {
+      try {
+        const reqDir = parsedUrl.searchParams.get('dir') || '';
+        const targetDir = resolveEditorPath(reqDir);
+        if (!fs.existsSync(targetDir) || !fs.statSync(targetDir).isDirectory()) {
+          return sendJson(404, { error: `Directory '${reqDir}' not found.` });
+        }
+
+        const buildTree = (dir, depth = 0) => {
+          if (depth > 3) return [];
+          let items = [];
+          try {
+            items = fs.readdirSync(dir, { withFileTypes: true });
+          } catch (_) {
+            return [];
+          }
+
+          const ignored = ['.git', 'node_modules', '.cache', '.gemini', '.hermes'];
+          const result = [];
+
+          items.sort((a, b) => {
+            if (a.isDirectory() && !b.isDirectory()) return -1;
+            if (!a.isDirectory() && b.isDirectory()) return 1;
+            return a.name.localeCompare(b.name);
+          });
+
+          for (const item of items) {
+            if (ignored.includes(item.name)) continue;
+            const fullPath = path.join(dir, item.name);
+            const relPath = path.relative(__dirname, fullPath);
+            const isDir = item.isDirectory();
+
+            let size = 0;
+            if (!isDir) {
+              try { size = fs.statSync(fullPath).size; } catch (_) {}
+            }
+
+            result.push({
+              name: item.name,
+              path: relPath,
+              fullPath,
+              isDir,
+              size,
+              children: isDir ? buildTree(fullPath, depth + 1) : null
+            });
+          }
+          return result;
+        };
+
+        const tree = buildTree(targetDir, 0);
+        return sendJson(200, {
+          success: true,
+          root: targetDir,
+          name: path.basename(targetDir),
+          relativeRoot: path.relative(__dirname, targetDir) || '.',
+          items: tree
+        });
+      } catch (err) {
+        return sendJson(400, { error: err.message });
+      }
+    }
+
+    // GET /api/editor/file (Load any text file for editing)
+    if (pathname === '/api/editor/file' && method === 'GET') {
+      try {
+        const requested = (parsedUrl.searchParams.get('file') || 'public/style.css').trim();
+        const targetPath = resolveEditorPath(requested);
+
+        if (!fs.existsSync(targetPath)) {
+          return sendJson(404, { error: `File '${requested}' not found.` });
+        }
+        const stats = fs.statSync(targetPath);
+        if (stats.isDirectory()) {
+          return sendJson(400, { error: `'${requested}' is a folder, not a file.` });
+        }
+        if (stats.size > 2 * 1024 * 1024) {
+          return sendJson(400, { error: 'File size too large for browser editor (> 2MB).' });
+        }
+
+        const content = fs.readFileSync(targetPath, 'utf8');
+        return sendJson(200, {
+          success: true,
+          file: path.relative(__dirname, targetPath),
+          fullPath: targetPath,
+          basename: path.basename(targetPath),
+          content,
+          size: stats.size,
+          modified: stats.mtime
+        });
+      } catch (err) {
+        return sendJson(400, { error: err.message });
+      }
+    }
+
+    // POST /api/editor/save (Save any file with hot-reload trigger)
+    if (pathname === '/api/editor/save' && method === 'POST') {
+      try {
+        const body = await parseBody();
+        const requested = (body.file || '').trim();
+        if (!requested) return sendJson(400, { error: 'File path is required.' });
+        const content = body.content;
+        if (typeof content !== 'string') return sendJson(400, { error: 'Content string is required.' });
+
+        const targetPath = resolveEditorPath(requested);
+        fs.mkdirSync(path.dirname(targetPath), { recursive: true });
+        fs.writeFileSync(targetPath, content, 'utf8');
+        const stats = fs.statSync(targetPath);
+        const bName = path.basename(targetPath);
+        const rel = path.relative(__dirname, targetPath);
+
+        let reloadTarget = 'none';
+        if (rel.startsWith('public') || targetPath.includes('/public/')) {
+          if (bName.endsWith('.css')) reloadTarget = 'css';
+          else if (bName.endsWith('.html') || bName.endsWith('.js')) reloadTarget = 'page';
+        }
+
+        return sendJson(200, {
+          success: true,
+          message: `'${bName}' save ho gaya!`,
+          file: rel,
+          fullPath: targetPath,
+          size: stats.size,
+          reloadTarget
+        });
+      } catch (err) {
+        return sendJson(400, { error: err.message });
+      }
+    }
+
+    // POST /api/editor/create-file
+    if (pathname === '/api/editor/create-file' && method === 'POST') {
+      try {
+        const body = await parseBody();
+        const requested = (body.path || '').trim();
+        if (!requested) return sendJson(400, { error: 'File path is required.' });
+
+        const targetPath = resolveEditorPath(requested);
+        if (fs.existsSync(targetPath)) {
+          return sendJson(400, { error: `File '${path.basename(targetPath)}' pehle se mojood hai.` });
+        }
+
+        fs.mkdirSync(path.dirname(targetPath), { recursive: true });
+        fs.writeFileSync(targetPath, body.content || '', 'utf8');
+
+        return sendJson(200, {
+          success: true,
+          message: `Nayi file '${path.basename(targetPath)}' ban gayi!`,
+          file: path.relative(__dirname, targetPath),
+          fullPath: targetPath
+        });
+      } catch (err) {
+        return sendJson(400, { error: err.message });
+      }
+    }
+
+    // POST /api/editor/create-folder
+    if (pathname === '/api/editor/create-folder' && method === 'POST') {
+      try {
+        const body = await parseBody();
+        const requested = (body.path || '').trim();
+        if (!requested) return sendJson(400, { error: 'Folder path is required.' });
+
+        const targetPath = resolveEditorPath(requested);
+        if (fs.existsSync(targetPath)) {
+          return sendJson(400, { error: `Folder '${path.basename(targetPath)}' pehle se mojood hai.` });
+        }
+
+        fs.mkdirSync(targetPath, { recursive: true });
+        return sendJson(200, {
+          success: true,
+          message: `Naya folder '${path.basename(targetPath)}' ban gaya!`,
+          folder: path.relative(__dirname, targetPath),
+          fullPath: targetPath
+        });
+      } catch (err) {
+        return sendJson(400, { error: err.message });
+      }
+    }
+
+    // POST /api/editor/delete
+    if (pathname === '/api/editor/delete' && method === 'POST') {
+      try {
+        const body = await parseBody();
+        const requested = (body.path || '').trim();
+        if (!requested) return sendJson(400, { error: 'Path is required.' });
+
+        const targetPath = resolveEditorPath(requested);
+        if (targetPath === __dirname || targetPath === '/data/data/com.termux/files/home') {
+          return sendJson(400, { error: 'Root directory delete nahi ki ja sakti.' });
+        }
+        if (!fs.existsSync(targetPath)) {
+          return sendJson(404, { error: 'File ya folder mojood nahi hai.' });
+        }
+
+        fs.rmSync(targetPath, { recursive: true, force: true });
+        return sendJson(200, {
+          success: true,
+          message: `'${path.basename(targetPath)}' delete kardiya gaya.`
+        });
+      } catch (err) {
+        return sendJson(400, { error: err.message });
+      }
+    }
+
     // POST /api/chat (Hybrid Chat with SSE Streaming)
     if (pathname === '/api/chat' && method === 'POST') {
       let body;
@@ -3107,12 +3738,17 @@ function startServer() {
         });
 
         if (!isErr && localResponse) {
-          if (localIntent === 'reload_page') {
+          const intentType = typeof localIntent === 'object' ? localIntent.type : localIntent;
+          if (intentType === 'open_editor') {
+            sendEvent({ type: 'switch_tab', tab: 'editor' });
+          } else if (intentType === 'cd' || (intentType === 'terminal_exec' && /^cd(\s+.*)?$/i.test(localIntent.command))) {
+            sendEvent({ type: 'cwd_changed', cwd: LocalEngine.getCwd() });
+          } else if (intentType === 'reload_page' || intentType === 'troubleshoot_changes') {
             sendEvent({ type: 'hot_reload', target: 'page' });
-          } else if (localIntent === 'modify_component') {
+          } else if (intentType === 'modify_component') {
             const isHtml = /HTML Content Updated/i.test(localResponse);
             sendEvent({ type: 'hot_reload', target: isHtml ? 'page' : 'css' });
-          } else if (localIntent === 'edit_gui') {
+          } else if (intentType === 'edit_gui') {
             const isPage = /HTML Updated|app\.js/i.test(localResponse);
             const isCss = /CSS Updated|CSS Variable|CSS Rule/i.test(localResponse);
             if (isPage) {

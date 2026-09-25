@@ -14,14 +14,30 @@
     <!-- Top Navigation Header -->
     <header class="app-header">
       <div class="brand">
-        <div class="avatar-glow">🤖</div>
-        <div class="brand-text">
-          <h1>JENA <span class="version-tag">v0.3</span></h1>
-          <p class="subtitle">Autonomous Hybrid AI Agent • Termux / Linux</p>
+        <!-- Row 1: Avatar, Brand Name, Version Tag, Online/Offline Toggle, and Refresh Button -->
+        <div class="header-main-row">
+          <div class="avatar-glow">🧚‍♀️</div>
+          <h1 class="brand-title">JENA <span class="version-tag">v0.3</span></h1>
+          
+          <div class="header-actions">
+            <!-- Mode Switch (Offline / Online) -->
+            <div class="mode-toggle-group" id="modeToggleGroup">
+              <button type="button" class="mode-toggle-btn active" id="btnModeOnline" data-mode="online">🌐 Online</button>
+              <button type="button" class="mode-toggle-btn" id="btnModeOffline" data-mode="offline">⚡ Offline</button>
+            </div>
+
+            <!-- Page Refresh / Hot-Reload Button -->
+            <button type="button" class="btn-icon-header" id="btnPageRefresh" title="Live Refresh Styles (Shift+Click to reload page)">
+              🔄
+            </button>
+          </div>
         </div>
+
+        <!-- Row 2: Subtitle -->
+        <p class="subtitle">Autonomous Hybrid AI Agent • Termux / Linux</p>
       </div>
 
-      <!-- Main Navigation Tabs (Page 1 vs Page 2) -->
+      <!-- Main Navigation Tabs (Page 1 vs Page 2 vs Page 3) -->
       <nav class="nav-tabs">
         <button type="button" class="nav-tab active" id="tabNavMain">
           💬 Chat
@@ -29,20 +45,10 @@
         <button type="button" class="nav-tab" id="tabNavSettings">
           ⚙️ Providers & Models
         </button>
-      </nav>
-
-      <div class="header-actions">
-        <!-- Mode Switch (Offline / Online) -->
-        <div class="mode-toggle-group" id="modeToggleGroup">
-          <button type="button" class="mode-toggle-btn active" id="btnModeOnline" data-mode="online">🌐 Online</button>
-          <button type="button" class="mode-toggle-btn" id="btnModeOffline" data-mode="offline">⚡ Offline</button>
-        </div>
-
-        <!-- Page Refresh / Hot-Reload Button -->
-        <button type="button" class="btn-icon-header" id="btnPageRefresh" title="Live Refresh Styles (Shift+Click to reload page)">
-          🔄
+        <button type="button" class="nav-tab" id="tabNavEditor">
+          🛠️ Code Editor
         </button>
-      </div>
+      </nav>
     </header>
 
     <!-- ========================================================= -->
@@ -80,22 +86,19 @@
           <span class="active-model-label">Active Engine:</span>
           <span class="active-model-name" id="mainActiveModelText">Groq &bull; Qwen 3.8 27B</span>
         </div>
-        <button type="button" class="btn-link-settings" id="btnJumpToSettings">
-          Manage Providers & Keys ⚙️
-        </button>
+        
       </div>
 
       <!-- CWD Path Indicator -->
       <div class="cwd-status-bar">
         <div class="cwd-info">
-          <span class="cwd-icon">📍</span>
           <span class="cwd-label">CWD:</span>
-          <code class="cwd-path" id="mainCwdText">/data/data/com.termux/files/home</code>
+          <code class="cwd-path" id="mainCwdText" title="/data/data/com.termux/files/home">home</code>
         </div>
         <div class="cwd-quick-actions">
-          <button type="button" class="btn-xs-cwd" id="btnQuickLs" title="List files in current directory">📂 ls</button>
-          <button type="button" class="btn-xs-cwd" id="btnQuickTree" title="Folder tree view">🌲 tree</button>
-          <button type="button" class="btn-xs-cwd" id="btnQuickMemory" title="Learned operations & facts">🧠 memory</button>
+          <button type="button" class="btn-xs-cwd" id="btnQuickLs" title="List files in current directory">ls</button>
+          <button type="button" class="btn-xs-cwd" id="btnQuickTree" title="Folder tree view">tree</button>
+          <button type="button" class="btn-xs-cwd" id="btnQuickMemory" title="Learned operations & facts">memory</button>
         </div>
       </div>
 
@@ -348,7 +351,7 @@
               </div>
 
               <!-- Add New Learned Operation Form -->
-              <div style="background: rgba(0, 0, 0, 0.2); padding: 14px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); margin-top: 10px;">
+              <div style="background: #f8fafc; padding: 14px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); margin-top: 10px;">
                 <h4 style="font-size: 13px; color: var(--accent-cyan); margin-bottom: 8px; font-weight: 700;">➕ Naya Offline Operation Sikhayein:</h4>
                 <div class="form-row">
                   <div class="form-group" style="width: 180px;">
@@ -371,7 +374,7 @@
               </div>
 
               <!-- Add Knowledge Fact Form -->
-              <div style="background: rgba(0, 0, 0, 0.2); padding: 14px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); margin-top: 10px;">
+              <div style="background: #f8fafc; padding: 14px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); margin-top: 10px;">
                 <h4 style="font-size: 13px; color: var(--accent-purple); margin-bottom: 8px; font-weight: 700;">📌 Maloomat / Fact Yaad Rakhwayein:</h4>
                 <div class="form-row">
                   <div class="form-group flex-grow">
@@ -459,6 +462,90 @@
               </div>
             </div>
           </div>
+        </div>
+    </section>
+ 
+    <!-- ========================================================= -->
+    <!-- PAGE 3: CODE EDITOR (Manual HTML & CSS Live Editor)       -->
+    <!-- ========================================================= -->
+    <section class="page-view" id="pageEditor" style="display: none;">
+      <div class="editor-container">
+        <!-- Editor Top Toolbar -->
+        <div class="editor-toolbar">
+          <div class="editor-toolbar-left">
+            <button type="button" class="btn btn-secondary btn-sm" id="btnToggleFileTree" title="Toggle File Explorer Sidebar">
+              📂 Files
+            </button>
+            <div class="editor-file-tabs" id="editorOpenTabs">
+              <!-- Dynamically populated open file tabs -->
+            </div>
+          </div>
+
+          <div class="editor-actions">
+            <!-- Edit helpers: Undo, Redo, Tab -->
+            <div class="editor-edit-helpers">
+              <button type="button" class="btn-tool" id="btnEditorUndo" title="Undo (Ctrl+Z)">↶ Undo</button>
+              <button type="button" class="btn-tool" id="btnEditorRedo" title="Redo (Ctrl+Y)">↷ Redo</button>
+              <button type="button" class="btn-tool" id="btnEditorTab" title="Insert 2-space tab indent">⇥ Tab</button>
+            </div>
+
+            <span class="editor-status" id="editorStatus">✓ Loaded</span>
+            
+            <button type="button" class="btn btn-secondary btn-sm" id="btnReloadEditorFile" title="Reload current file from disk">
+              🔄 Reload
+            </button>
+            <button type="button" class="btn btn-primary btn-sm" id="btnSaveEditorFile" title="Save file & apply hot-reload (Ctrl+S)">
+              💾 Save & Apply
+            </button>
+            <a href="http://127.0.0.1:8085" target="_blank" class="btn btn-accent btn-sm" id="btnOpenVsCode" title="Full VS Code Web IDE (Port 8085)">
+              ⚡ VS Code
+            </a>
+          </div>
+        </div>
+
+        <!-- Main Workspace: File Explorer Sidebar + Textarea -->
+        <div class="editor-workspace-wrapper">
+          <!-- Sidebar: File System Explorer -->
+          <aside class="editor-sidebar" id="editorSidebar">
+            <div class="sidebar-header">
+              <div class="sidebar-title">
+                <span>📁 Project:</span>
+                <strong id="editorTreeRootName">jena2</strong>
+              </div>
+              <div class="sidebar-actions">
+                <button type="button" class="btn-icon-xs" id="btnNewFile" title="Create New File">➕ File</button>
+                <button type="button" class="btn-icon-xs" id="btnNewFolder" title="Create New Folder">📁+ Folder</button>
+                <button type="button" class="btn-icon-xs" id="btnRefreshTree" title="Refresh File Tree">🔄</button>
+              </div>
+            </div>
+
+            <!-- Inline creation form for new file or folder -->
+            <div class="sidebar-create-box" id="sidebarCreateBox" style="display: none;">
+              <div class="sidebar-create-label" id="sidebarCreateTypeLabel">📄 New File:</div>
+              <div class="sidebar-create-input-group">
+                <input type="text" id="inputNewItemName" class="form-control" placeholder="e.g. script.js ya components/">
+                <button type="button" class="btn btn-primary btn-xs" id="btnConfirmCreateItem">OK</button>
+                <button type="button" class="btn btn-secondary btn-xs" id="btnCancelCreateItem">✖</button>
+              </div>
+            </div>
+
+            <div class="file-tree-container" id="fileTreeContainer">
+              <!-- Dynamically populated file tree -->
+            </div>
+          </aside>
+
+          <!-- Textarea & Line Numbers -->
+          <div class="editor-workspace">
+            <div class="editor-line-numbers" id="editorLineNumbers">1</div>
+            <textarea class="editor-textarea" id="editorTextarea" spellcheck="false" autocomplete="off" autocapitalize="off" placeholder="File select karein ya nayi file banayein..."></textarea>
+          </div>
+        </div>
+
+        <!-- Editor Footer Bar -->
+        <div class="editor-footer-bar">
+          <div class="editor-info" id="editorFileInfo">public/style.css &bull; UTF-8</div>
+          <div class="editor-cursor-pos" id="editorCursorPos">Line 1, Col 1 &bull; 0 chars</div>
+          <div class="editor-hint">💡 Tip: <kbd>Ctrl+S</kbd> dabayein live save aur apply karne ke liye. <kbd>Tab</kbd> se 2 spaces insert hongi.</div>
         </div>
       </div>
     </section>
