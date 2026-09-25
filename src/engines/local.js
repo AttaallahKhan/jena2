@@ -14,6 +14,7 @@ const { GitTools } = require('../tools/git');
 const { GuiTools } = require('../tools/gui');
 const { ScaffoldTools } = require('../tools/scaffold');
 const { DeviceTools } = require('../tools/device');
+const { PackageTools } = require('../tools/package');
 const { EvolutionEngine } = require('./evolution');
 
 class LocalEngine {
@@ -26,10 +27,65 @@ class LocalEngine {
     return this.currentDir;
   }
 
+  static splitCompoundQuery(q) {
+    if (!q || typeof q !== 'string') return null;
+    const clean = q.trim();
+    const parts = clean.split(/\s+(?:aur|and|phir|then|then\s+also)\s+|;\s*/i);
+    if (parts.length > 1 && parts.every(p => p.trim().length >= 2)) {
+      return parts.map(p => p.trim());
+    }
+    return null;
+  }
+
+  static parsePackageIntent(q) {
+    if (!q || typeof q !== 'string') return null;
+    const clean = q.trim().toLowerCase().replace(/^(?:hey|suno|o|ai)?\s*jena\b[:,\s]*/i, '').replace(/[\?!]/g, '').trim();
+
+    // 1. Conditional: Check & Install if not installed
+    const mCond = clean.match(/(?:check\s+karo\s+)?([a-z0-9_\-\.]+)\s+installed\s+(?:hay|hai)\s+ya\s+nahi\s*,\s*agar\s+nahi\s+to\s+install(?:\s+karo)?/i) ||
+                  clean.match(/(?:check\s+karo\s+)?([a-z0-9_\-\.]+)\s+agar\s+installed\s+nahi\s+to\s+install(?:\s+karo)?/i);
+    if (mCond && mCond[1].length >= 2 && !['karo', 'karein', 'file', 'folder'].includes(mCond[1])) {
+      return { type: 'pkg_check_and_install', pkg: mCond[1] };
+    }
+
+    // 2. Check only
+    const mCheck = clean.match(/(?:check\s+karo\s+)?([a-z0-9_\-\.]+)\s+installed\s+(?:hay|hai)\s+ya\s+nahi/i) ||
+                   clean.match(/(?:check\s+karo\s+)?([a-z0-9_\-\.]+)\s+installed\s+(?:hay|hai)/i) ||
+                   clean.match(/^([a-z0-9_\-\.]+)\s+(?:check\s+karo|check)$/i) ||
+                   clean.match(/^check\s+([a-z0-9_\-\.]+)$/i);
+    if (mCheck && mCheck[1].length >= 2 && !['karo', 'karein', 'file', 'folder', 'phone', 'home', 'battery', 'ram', 'storage'].includes(mCheck[1])) {
+      return { type: 'pkg_check', pkg: mCheck[1] };
+    }
+
+    // 3. Install only
+    const mInstall = clean.match(/^(?:install\s+karo|pkg\s+install|install)\s+([a-z0-9_\-\.]+)$/i) ||
+                     clean.match(/^([a-z0-9_\-\.]+)\s+install(?:\s+karo)?$/i);
+    if (mInstall && mInstall[1].length >= 2 && !['karo', 'karein', 'file', 'folder'].includes(mInstall[1])) {
+      return { type: 'pkg_install', pkg: mInstall[1] };
+    }
+
+    return null;
+  }
+
   static isLocalIntent(query) {
     if (!query || typeof query !== 'string') return false;
     let q = query.trim().toLowerCase();
     q = q.replace(/^(?:hey|suno|o|ai)?\s*jena\b[:,\s]*/i, '').trim();
+
+    // Multi-command / Compound Query detection ("aur", "and", "phir", "then")
+    const compoundParts = this.splitCompoundQuery(q);
+    if (compoundParts) {
+      const subIntents = compoundParts.map(part => ({ query: part, intent: this.isLocalIntent(part) }));
+      if (subIntents.every(s => !!s.intent)) {
+        return { type: 'compound_query', parts: subIntents };
+      }
+    }
+
+    // Package Management (Check, Install, Check & Install)
+    const pkgIntent = this.parsePackageIntent(q);
+    if (pkgIntent) {
+      return pkgIntent;
+    }
 
     // 0. Mode status query & switching
     if (
@@ -333,11 +389,31 @@ class LocalEngine {
   }
 
   static async execute(intent, query) {
-    if (typeof intent === 'object' && intent.type === 'learned_op') {
-      return await TerminalTools.executeLearnedOperation(intent.op, this.getCwd());
-    }
-    if (typeof intent === 'object' && intent.type === 'terminal_exec') {
-      return await TerminalTools.executeTerminalCommand(intent.command, intent.autoYes, this.getCwd());
+    if (typeof intent === 'object') {
+      if (intent.type === 'compound_query') {
+        const results = [];
+        for (let i = 0; i < intent.parts.length; i++) {
+          const item = intent.parts[i];
+          const res = await this.execute(item.intent, item.query);
+          results.push(`### 🔹 Step ${i + 1}: \`${item.query}\`\n${res}`);
+        }
+        return results.join('\n\n---\n\n');
+      }
+      if (intent.type === 'pkg_check') {
+        return await PackageTools.checkPackage(intent.pkg);
+      }
+      if (intent.type === 'pkg_install') {
+        return await PackageTools.installPackage(intent.pkg);
+      }
+      if (intent.type === 'pkg_check_and_install') {
+        return await PackageTools.checkAndInstall(intent.pkg);
+      }
+      if (intent.type === 'learned_op') {
+        return await TerminalTools.executeLearnedOperation(intent.op, this.getCwd());
+      }
+      if (intent.type === 'terminal_exec') {
+        return await TerminalTools.executeTerminalCommand(intent.command, intent.autoYes, this.getCwd());
+      }
     }
 
     switch (intent) {

@@ -172,6 +172,8 @@ class EvolutionEngine {
         'heuristic'
       );
       if (op) {
+        // Decompose compound conditional into discrete sub-operations (check vs install)
+        this.decomposeConditionalSubOperations(userMessage, heuristicOp.command);
         return { type: 'OPERATION_DISTILLED', source: 'heuristic', name: op.name, trigger: op.trigger, command: op.command };
       }
     }
@@ -235,6 +237,29 @@ class EvolutionEngine {
       command: finalCmd,
       description
     };
+  }
+
+  /**
+   * Decompose composite or conditional commands (e.g. check & install) into discrete sub-operations
+   */
+  static decomposeConditionalSubOperations(userMessage, command) {
+    const q = (userMessage || '').toLowerCase();
+    const pkgMatch = q.match(/(?:check\s+karo\s+)?([a-z0-9_\-\.]+)\s+installed\s+(?:hay|hai)\s+ya\s+nahi\s*,\s*agar\s+nahi\s+to\s+install/i) ||
+                     q.match(/(?:check\s+karo\s+)?([a-z0-9_\-\.]+)\s+agar\s+installed\s+nahi\s+to\s+install/i);
+
+    if (pkgMatch && pkgMatch[1].length >= 2) {
+      const pkg = pkgMatch[1].trim();
+
+      // 1. Sub-operation: Check only
+      const checkTrig = `check ${pkg} installed|${pkg} check karo|${pkg} check|check karo ${pkg} installed hay ya nahi`;
+      const checkCmd = `command -v ${pkg} 2>/dev/null && echo "Haan, ${pkg} pehle se installed hai ($(${pkg} --version 2>/dev/null || which ${pkg}))" || echo "Nahi, ${pkg} installed nahi hai."`;
+      this.registerOperationSafe(`check_${pkg}`, checkTrig, checkCmd, `Check if ${pkg} is installed in Termux`, 'sub_op_check');
+
+      // 2. Sub-operation: Install only
+      const installTrig = `install ${pkg}|${pkg} install karo|install karo ${pkg}|pkg install ${pkg}`;
+      const installCmd = `pkg install -y ${pkg}`;
+      this.registerOperationSafe(`install_${pkg}`, installTrig, installCmd, `Install ${pkg} in Termux`, 'sub_op_install');
+    }
   }
 
   /**
