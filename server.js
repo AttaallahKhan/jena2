@@ -19,6 +19,7 @@ const os = require('os');
 const { exec, spawn } = require('child_process');
 
 const HOME_DIR = process.env.HOME || '/data/data/com.termux/files/home';
+const PHONE_DIR = '/storage/emulated/0/termux-to-phone';
 const JENA_DIR = path.join(HOME_DIR, '.jena');
 const CONFIG_FILE = path.join(JENA_DIR, 'config.json');
 const MEMORY_FILE = path.join(JENA_DIR, 'memory.json');
@@ -524,26 +525,85 @@ class LocalEngine {
     return this.currentDir;
   }
 
+  static ensurePhoneDir() {
+    if (!fs.existsSync(PHONE_DIR)) {
+      try {
+        fs.mkdirSync(PHONE_DIR, { recursive: true });
+      } catch (_) {}
+    }
+    return PHONE_DIR;
+  }
+
   static resolvePath(inputPath) {
     if (!inputPath || inputPath.trim() === '' || inputPath === '~') {
       return HOME_DIR;
     }
     let trimmed = inputPath.trim();
+    if ((trimmed.startsWith('"') && trimmed.endsWith('"')) || (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
+      trimmed = trimmed.slice(1, -1).trim();
+    }
+    const lower = trimmed.toLowerCase();
+
+    // 1. Direct aliases for HOME
+    if (['home', 'home folder', 'home dir', 'home directory', '/home'].includes(lower)) {
+      return HOME_DIR;
+    }
+
+    // 2. Direct aliases for PHONE (termux-to-phone)
+    if (
+      [
+        'phone',
+        'phone folder',
+        'phone storage',
+        'phone dir',
+        'termux-to-phone',
+        'termex-to-phone',
+        'termux to phone',
+        'termex to phone',
+        'storage/termux-to-phone',
+        '~/storage/termux-to-phone'
+      ].includes(lower)
+    ) {
+      this.ensurePhoneDir();
+      return PHONE_DIR;
+    }
+
+    // 3. Prefix handling for home
     if (trimmed.startsWith('~/home/')) {
       trimmed = '~/' + trimmed.slice(7);
+    } else if (/^home\/(.+)$/i.test(trimmed)) {
+      return path.normalize(path.join(HOME_DIR, trimmed.replace(/^home\//i, '')));
     }
-    // Check if path refers to storage (e.g. ~/storage/<name> or storage/<name>)
-    const storageMatch = trimmed.match(/^(?:~\/)?storage\/(.+)$/);
+
+    // 4. Prefix handling for phone (termux-to-phone)
+    if (/^(?:phone|termux-to-phone|termex-to-phone)\/(.+)$/i.test(trimmed)) {
+      this.ensurePhoneDir();
+      const sub = trimmed.replace(/^(?:phone|termux-to-phone|termex-to-phone)\//i, '');
+      return path.normalize(path.join(PHONE_DIR, sub));
+    }
+    if (/^(?:~\/)?storage\/(?:termux-to-phone|termex-to-phone)\/(.+)$/i.test(trimmed)) {
+      this.ensurePhoneDir();
+      const sub = trimmed.replace(/^(?:~\/)?storage\/(?:termux-to-phone|termex-to-phone)\//i, '');
+      return path.normalize(path.join(PHONE_DIR, sub));
+    }
+
+    // 5. Storage shortcuts (e.g. ~/storage/<name> or storage/<name>)
+    const storageMatch = trimmed.match(/^(?:~\/)?storage\/(.+)$/i);
     if (storageMatch) {
       const sub = storageMatch[1].trim();
+      const subLower = sub.toLowerCase();
+      if (subLower === 'termux-to-phone' || subLower === 'termex-to-phone') {
+        this.ensurePhoneDir();
+        return PHONE_DIR;
+      }
       const phonePath = path.join('/storage/emulated/0', sub);
-      // If folder exists on phone storage, or is a custom folder name
-      if (fs.existsSync(phonePath) || !['dcim', 'downloads', 'movies', 'music', 'pictures', 'shared'].includes(sub.toLowerCase())) {
+      if (fs.existsSync(phonePath) || !['dcim', 'downloads', 'movies', 'music', 'pictures', 'shared'].includes(subLower)) {
         return path.normalize(phonePath);
       }
     }
+
     if (trimmed.startsWith('~/')) {
-      return path.join(HOME_DIR, trimmed.slice(2));
+      return path.normalize(path.join(HOME_DIR, trimmed.slice(2)));
     }
     if (path.isAbsolute(trimmed)) {
       return path.normalize(trimmed);
@@ -724,7 +784,12 @@ class LocalEngine {
     ) {
       return 'pwd';
     }
-    if (/^(ls|dir)(\s+.*)?$/i.test(q) || /\b(files dikhao|list files|folder mein kya|directory check)\b/i.test(q)) {
+    if (
+      /^(ls|dir)(\s+.*)?$/i.test(q) ||
+      /\b(?:files\s+dikhao|list\s+files|folder\s+mein\s+kya|directory\s+check)\b/i.test(q) ||
+      /(?:folder|directory)?\s*(?:list\s+karo|list\s+kardo|list\s+karein)\b/i.test(q) ||
+      /^(?:list\s+)/i.test(q)
+    ) {
       return 'ls';
     }
     if (/^(cat|view|read|file parho|file dikhao)\s+/i.test(q)) {
@@ -733,7 +798,10 @@ class LocalEngine {
     if (/^(tree|folder tree)(\s+.*)?$/i.test(q)) {
       return 'tree';
     }
-    if (/^(find|dhoondo|search file)\s+/i.test(q)) {
+    if (
+      /^(?:find|dhoondo|search\s+file|search|locate|where\s+is)\s+/i.test(q) ||
+      /(?:kahan\s+(?:hai|hay|he|h[ou]+n)|kidhar\s+(?:hai|hay))\b/i.test(q)
+    ) {
       return 'find';
     }
     if (/^(mkdir|folder banao)\s+/i.test(q)) {
@@ -743,9 +811,18 @@ class LocalEngine {
       return 'touch';
     }
     if (
+      /^(?:mv|move|cut)\s+/i.test(q) ||
+      /(?:move\s+karo|move\s+kardo|cut\s+paste|main\s+move\s+karo|main\s+move\s+kardo)/i.test(q) ||
+      /(?:from\s+phone\s+to\s+home|from\s+home\s+to\s+phone)\s+.*?(?:move|mv)/i.test(q) ||
+      /(?:move|mv)\s+.*?(?:phone|home)/i.test(q)
+    ) {
+      return 'move_item';
+    }
+    if (
       /^(?:cp|copy)\s+/i.test(q) ||
-      /(?:copy\s+karo|paste\s+karo|main\s+copy\s+karo|main\s+paste\s+karo)/i.test(q) ||
-      /(?:copy\s+(?:public|folder|file))/i.test(q)
+      /(?:copy\s+karo|copy\s+kardo|paste\s+karo|main\s+copy\s+karo|main\s+copy\s+kardo|main\s+paste\s+karo)/i.test(q) ||
+      /(?:copy\s+(?:public|folder|file|phone|home))/i.test(q) ||
+      /(?:from\s+phone\s+to\s+home|from\s+home\s+to\s+phone)/i.test(q)
     ) {
       return 'copy_item';
     }
@@ -796,6 +873,8 @@ class LocalEngine {
     switch (intent) {
       case 'git_op':
         return await this.executeGitOperation(query);
+      case 'move_item':
+        return this.moveItem(query);
       case 'copy_item':
         return this.copyItem(query);
       case 'teach':
@@ -1180,7 +1259,12 @@ class LocalEngine {
   }
 
   static listFiles(query = '') {
-    let target = (query || '').replace(/^(ls|dir|files dikhao|list files|folder mein kya|directory check)\s*/i, '').trim();
+    let target = (query || '').trim();
+    target = target.replace(/^(?:hey|suno|o|ai)?\s*jena\b[:,\s]*/i, '').trim();
+    target = target.replace(/^(?:ls|dir|files\s+dikhao|list\s+files|folder\s+mein\s+kya|directory\s+check|list)\s*/i, '').trim();
+    target = target.replace(/\s*(?:folder|directory)?\s*(?:list\s+karo|list\s+kardo|list\s+karein|dikhao|check).*$/i, '').trim();
+    target = target.replace(/\s+(?:folder|directory)\s*$/i, '').trim();
+
     const dir = target ? this.resolvePath(target) : this.getCwd();
 
     if (!fs.existsSync(dir)) {
@@ -1302,9 +1386,24 @@ class LocalEngine {
   }
 
   static searchFiles(query) {
-    let term = query.replace(/^(find|dhoondo|search file)\s+/i, '').trim();
-    if (!term) return '⚠️ Barah-e-karam search term likhein (e.g. `find config`).';
-    const rootDir = this.getCwd();
+    let term = (query || '').trim();
+    term = term.replace(/^(?:hey|suno|o|ai)?\s*jena\b[:,\s]*/i, '').trim();
+    term = term.replace(/^(?:find|dhoondo|search\s+file|search|locate|where\s+is)\s+/i, '').trim();
+    term = term.replace(/\s*(?:folder|file)?\s*(?:kahan\s+(?:hai|hay|he|h[ou]+n)|kidhar\s+(?:hai|hay)).*$/i, '').trim();
+    term = term.replace(/^(?:folder|file)\s+/i, '').trim();
+    term = term.replace(/\s+(?:folder|file)\s*$/i, '').trim();
+
+    if (!term) return '⚠️ Barah-e-karam search term likhein (e.g. `find config` ya `public folder kahan hay`).';
+
+    this.ensurePhoneDir();
+    const searchRoots = [
+      { name: 'Current Directory', path: this.getCwd() },
+      { name: 'Home Folder', path: HOME_DIR },
+      { name: 'Jena Project', path: path.join(HOME_DIR, 'jena2') },
+      { name: 'Phone Storage', path: PHONE_DIR }
+    ];
+
+    const seenPaths = new Set();
     const matches = [];
 
     const searchDir = (dir, depth = 0) => {
@@ -1312,10 +1411,15 @@ class LocalEngine {
       let items = [];
       try { items = fs.readdirSync(dir); } catch (_) { return; }
       for (const item of items) {
-        if (['node_modules', '.git', '.cache'].includes(item)) continue;
+        if (['node_modules', '.git', '.cache', '.gemini'].includes(item)) continue;
         const fullPath = path.join(dir, item);
+        if (seenPaths.has(fullPath)) continue;
+        seenPaths.add(fullPath);
+
         if (item.toLowerCase().includes(term.toLowerCase())) {
-          matches.push(fullPath.replace(rootDir + '/', ''));
+          let isDir = false;
+          try { isDir = fs.statSync(fullPath).isDirectory(); } catch (_) {}
+          matches.push({ path: fullPath, isDir });
         }
         try {
           if (fs.statSync(fullPath).isDirectory()) searchDir(fullPath, depth + 1);
@@ -1323,11 +1427,23 @@ class LocalEngine {
       }
     };
 
-    searchDir(rootDir);
-    if (matches.length === 0) {
-      return `🔍 \`${term}\` ke sath koi file ya folder nahi mila.`;
+    for (const root of searchRoots) {
+      if (fs.existsSync(root.path)) {
+        searchDir(root.path, 0);
+      }
     }
-    return `🔍 **Search Results for "${term}" in \`${rootDir}\`:**\n` + matches.map(m => `- \`${m}\``).join('\n');
+
+    if (matches.length === 0) {
+      return `🔍 \`${term}\` ke sath koi file ya folder nahi mila (CWD, Home, aur Phone storage check kiye).`;
+    }
+
+    const lines = [
+      `🔍 **Search Results for "${term}":**\n`
+    ];
+    matches.forEach(m => {
+      lines.push(`- ${m.isDir ? '📁' : '📄'} \`${m.path}\``);
+    });
+    return lines.join('\n');
   }
 
   static makeDirectory(query) {
@@ -1357,58 +1473,159 @@ class LocalEngine {
   }
 
   static copyItem(query) {
-    let q = query.trim();
+    return this.transferItem(query, false);
+  }
+
+  static moveItem(query) {
+    return this.transferItem(query, true);
+  }
+
+  static transferItem(query, defaultIsMove = false) {
+    let q = (query || '').trim();
     q = q.replace(/^(?:hey|suno|o|ai)?\s*jena\b[:,\s]*/i, '').trim();
+
+    let isMove = defaultIsMove;
+    if (/\b(?:move|mv|cut|hata\s*k|le\s*jao)\b/i.test(q)) {
+      isMove = true;
+    } else if (/\b(?:copy|cp|paste)\b/i.test(q)) {
+      isMove = false;
+    }
 
     let src = '';
     let dest = '';
+    let item = '';
+    let srcDir = '';
+    let destDir = '';
 
-    // Pattern 1: copy <src> (folder/file)? paste in <dest>
-    let m = q.match(/^(?:cp|copy)\s+(?:folder\s+|file\s+)?(.+?)\s+(?:paste\s+in|to|into)\s+(.+)$/i);
+    // Pattern 1: (copy|move)? from <srcDir> to <destDir> (copy|move)? <item>
+    let m = q.match(/^(?:cp|copy|mv|move)?\s*from\s+([a-zA-Z0-9_\-\/~]+)\s+to\s+([a-zA-Z0-9_\-\/~]+)\s+(?:copy|move|karo|kardo)?\s*(.+)$/i);
     if (m) {
-      src = m[1].trim();
-      dest = m[2].trim();
-    } else {
-      // Pattern 2: <src> (folder/file)? ko <dest> (main|mein|par)? copy karo
-      m = q.match(/^(.+?)\s+(?:folder\s+|file\s+)?ko\s+(.+?)\s+(?:main|mein|par)?\s*(?:copy|paste)\s*(?:karo|kardo)?$/i);
+      srcDir = m[1].trim();
+      destDir = m[2].trim();
+      item = m[3].replace(/\s*(?:copy|move|karo|kardo|karein)\s*$/i, '').trim();
+    }
+
+    // Pattern 2: <item> from <srcDir> to <destDir>
+    if (!srcDir) {
+      m = q.match(/^(?:cp|copy|mv|move)?\s*(.+?)\s+from\s+([a-zA-Z0-9_\-\/~]+)\s+to\s+([a-zA-Z0-9_\-\/~]+)(?:\s+(?:copy|move|karo|kardo))?$/i);
+      if (m) {
+        item = m[1].trim();
+        srcDir = m[2].trim();
+        destDir = m[3].trim();
+      }
+    }
+
+    // Pattern 3: Roman Urdu: <srcDir> se <item> <destDir> (main|mein|par) (copy|move|paste)?
+    if (!srcDir) {
+      m = q.match(/^([a-zA-Z0-9_\-\/~]+)\s+se\s+(.+?)\s+([a-zA-Z0-9_\-\/~]+)\s+(?:main|mein|par)\s*(?:copy|move|paste)?\s*(?:karo|kardo|karein)?$/i);
+      if (m) {
+        srcDir = m[1].trim();
+        item = m[2].trim();
+        destDir = m[3].trim();
+      }
+    }
+
+    // Pattern 4: <item> ko <destDir> (main|mein|par) (copy|move|paste)?
+    if (!srcDir && !src) {
+      m = q.match(/^(.+?)\s+(?:folder\s+|file\s+)?ko\s+([a-zA-Z0-9_\-\/~]+)\s+(?:main|mein|par)\s*(?:copy|move|paste)\s*(?:karo|kardo|karein)?$/i);
+      if (m) {
+        item = m[1].trim();
+        dest = m[2].trim();
+      }
+    }
+
+    // Pattern 5: (copy|move|cp|mv) <src> (paste in|to|into) <dest>
+    if (!srcDir && !src) {
+      m = q.match(/^(?:cp|copy|mv|move)\s+(?:folder\s+|file\s+)?(.+?)\s+(?:paste\s+in|to|into)\s+(.+)$/i);
       if (m) {
         src = m[1].trim();
         dest = m[2].trim();
-      } else {
-        // Pattern 3: cp <src> <dest>
-        m = q.match(/^cp\s+(.+?)\s+(.+)$/i);
-        if (m) {
-          src = m[1].trim();
-          dest = m[2].trim();
+      }
+    }
+
+    // Pattern 6: (cp|mv) <src> <dest>
+    if (!srcDir && !src) {
+      m = q.match(/^(?:cp|mv)\s+(.+?)\s+(.+)$/i);
+      if (m) {
+        src = m[1].trim();
+        dest = m[2].trim();
+      }
+    }
+
+    // Pattern 7: (copy|move) <src> <dest> where dest is phone, home, or storage
+    if (!srcDir && !src) {
+      m = q.match(/^(?:copy|move)\s+(.+?)\s+(phone|home|storage\/[a-zA-Z0-9_\-]+|termux-to-phone)$/i);
+      if (m) {
+        src = m[1].trim();
+        dest = m[2].trim();
+      }
+    }
+
+    // Resolve directories and items
+    if (srcDir && destDir && item) {
+      item = item.replace(/^(?:folder|file)\s+/i, '').replace(/\s+(?:folder|file)\s*$/i, '').trim();
+      const baseSrc = this.resolvePath(srcDir);
+      src = path.join(baseSrc, item);
+      dest = this.resolvePath(destDir);
+    } else if (src && dest) {
+      src = src.replace(/^(?:folder|file)\s+/i, '').replace(/\s+(?:folder|file)\s*$/i, '').trim();
+      dest = dest.replace(/\s*(?:main|mein|k\s+andar|ke\s+andar)\s*$/i, '').trim();
+      dest = dest.replace(/^(?:folder|file)\s+/i, '').replace(/\s+(?:folder|file)\s*$/i, '').trim();
+      src = this.resolvePath(src);
+      dest = this.resolvePath(dest);
+    } else if (item && dest) {
+      item = item.replace(/^(?:folder|file)\s+/i, '').replace(/\s+(?:folder|file)\s*$/i, '').trim();
+      dest = dest.replace(/\s*(?:main|mein|k\s+andar|ke\s+andar)\s*$/i, '').trim();
+      dest = dest.replace(/^(?:folder|file)\s+/i, '').replace(/\s+(?:folder|file)\s*$/i, '').trim();
+      src = this.resolvePath(item);
+      dest = this.resolvePath(dest);
+    }
+
+    if (!src || !dest) {
+      return (
+        `⚠️ Barah-e-karam source aur destination batayein.\n` +
+        `- **Misal:** \`copy public folder to phone\`\n` +
+        `- **Misal:** \`copy from phone to home app.js\`\n` +
+        `- **Misal:** \`move app.js to home\`\n` +
+        `- **Misal:** \`phone se public home main copy karo\``
+      );
+    }
+
+    // Locate source if not existing at direct path
+    let resolvedSrc = src;
+    if (!fs.existsSync(resolvedSrc)) {
+      const candidates = [
+        path.join(this.getCwd(), path.basename(src)),
+        path.join(HOME_DIR, path.basename(src)),
+        path.join(__dirname, path.basename(src)),
+        path.join(PHONE_DIR, path.basename(src)),
+        path.join(HOME_DIR, 'storage/downloads', path.basename(src))
+      ];
+      for (const cand of candidates) {
+        if (fs.existsSync(cand)) {
+          resolvedSrc = cand;
+          break;
         }
       }
     }
 
-    if (!src || !dest) {
-      return '⚠️ Barah-e-karam source aur destination batayein (e.g. `copy public to ~/storage/downloads`).';
-    }
-
-    dest = dest.replace(/\s*(?:main|mein|k\s+andar|ke\s+andar)\s*$/i, '').trim();
-    src = src.replace(/^(?:folder|file)\s+/i, '').replace(/\s+(?:folder|file)\s*$/i, '').trim();
-
-    let resolvedSrc = this.resolvePath(src);
-    if (!fs.existsSync(resolvedSrc) && fs.existsSync(path.join(__dirname, src))) {
-      resolvedSrc = path.join(__dirname, src);
-    }
-    let resolvedDest = this.resolvePath(dest);
-
     if (!fs.existsSync(resolvedSrc)) {
-      return `❌ **Copy Error:** Source file ya folder mojood nahi hai:\n\`${resolvedSrc}\``;
+      return `❌ **${isMove ? 'Move' : 'Copy'} Error:** Source file ya folder mojood nahi mila:\n\`${src}\``;
     }
 
+    let resolvedDest = dest;
+    this.ensurePhoneDir();
+
+    let targetDest = resolvedDest;
     try {
       const srcStat = fs.statSync(resolvedSrc);
       const isDir = srcStat.isDirectory();
 
+      // If destination is an existing directory, place the item inside it
       if (fs.existsSync(resolvedDest)) {
         const destStat = fs.statSync(resolvedDest);
         if (destStat.isDirectory()) {
-          resolvedDest = path.join(resolvedDest, path.basename(resolvedSrc));
+          targetDest = path.join(resolvedDest, path.basename(resolvedSrc));
         }
       } else {
         const parentDir = path.dirname(resolvedDest);
@@ -1417,17 +1634,35 @@ class LocalEngine {
         }
       }
 
-      fs.cpSync(resolvedSrc, resolvedDest, { recursive: true });
+      if (path.resolve(resolvedSrc) === path.resolve(targetDest)) {
+        return `⚠️ **Ooper:** Source aur Destination dono aik hi path hain:\n\`${resolvedSrc}\``;
+      }
+
+      if (isMove) {
+        try {
+          fs.renameSync(resolvedSrc, targetDest);
+        } catch (renameErr) {
+          // EXDEV fallback: cross-device link not permitted (between internal Termux and Android /storage/emulated/0)
+          if (renameErr.code === 'EXDEV' || renameErr.code === 'EPERM' || renameErr.code === 'EACCES') {
+            fs.cpSync(resolvedSrc, targetDest, { recursive: true });
+            fs.rmSync(resolvedSrc, { recursive: true, force: true });
+          } else {
+            throw renameErr;
+          }
+        }
+      } else {
+        fs.cpSync(resolvedSrc, targetDest, { recursive: true });
+      }
 
       return (
-        `📋 **Copy Successful!**\n` +
+        `${isMove ? '🚚' : '📋'} **${isMove ? 'Move' : 'Copy'} Kamyabi Se Mukammal!**\n` +
         `- 📦 **Type:** ${isDir ? '📁 Folder' : '📄 File'}\n` +
-        `- 🟢 **From:** \`${resolvedSrc}\`\n` +
-        `- 🎯 **To:** \`${resolvedDest}\`\n\n` +
-        `*(Kamyabi se copy ho gaya hai.)*`
+        `- 🟢 **Source:** \`${resolvedSrc}\`\n` +
+        `- 🎯 **Destination:** \`${targetDest}\`\n\n` +
+        `*(Files foran transfer ho chuki hain. Phone storage \`termux-to-phone\` files aapke mobile file manager ya apps mein foran dastiyab hain.)*`
       );
     } catch (err) {
-      return `❌ **Copy Error:** ${err.message}`;
+      return `❌ **${isMove ? 'Move' : 'Copy'} Error:** ${err.message}`;
     }
   }
 
