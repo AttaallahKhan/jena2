@@ -406,16 +406,50 @@ class MemoryManager {
     if (!query || typeof query !== 'string') return null;
     let q = query.trim().toLowerCase();
     q = q.replace(/^(?:run\s+op\s+|op\s+|run\s+|chalao\s+)/i, '').trim();
+    if (!q) return null;
+
+    const stopWords = new Set([
+      'karo', 'kardo', 'karein', 'hai', 'hay', 'hoon', 'ya', 'nahi', 'to', 'agar',
+      'aur', 'and', 'mein', 'main', 'se', 'ko', 'ka', 'ki', 'ke', 'the', 'a', 'an',
+      'is', 'in', 'or', 'zara', 'please', 'batao', 'dikhao'
+    ]);
+
+    const cleanStr = s => (s || '').toLowerCase().replace(/[,!?;:\(\)\[\]"\x27]/g, ' ').replace(/\s+/g, ' ').trim();
+    const getKeywords = s => cleanStr(s).split(' ').filter(w => w.length > 1 && !stopWords.has(w));
+
+    const qClean = cleanStr(q);
+    const qWords = getKeywords(q);
     const mem = this.load();
 
     return (mem.learned_operations || []).find(o => {
       if (!o || !o.trigger) return false;
       const triggers = o.trigger.toLowerCase().split('|').map(t => t.trim()).filter(Boolean);
+
       for (const trig of triggers) {
-        if (q === trig) return true;
-        if (q.startsWith(trig + ' ')) return true;
-        const escaped = trig.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        if (new RegExp(`(^|\\s)${escaped}($|\\s)`).test(q)) return true;
+        const tClean = cleanStr(trig);
+
+        // 1. Exact match
+        if (qClean === tClean) return true;
+
+        // 2. Starts with / prefix match in either direction
+        if (qClean.startsWith(tClean + ' ') || tClean.startsWith(qClean + ' ') || tClean.startsWith(qClean)) {
+          return true;
+        }
+
+        // 3. Substring inclusion if substantial length (>= 6 chars)
+        if (qClean.length >= 6 && tClean.includes(qClean)) return true;
+        if (tClean.length >= 6 && qClean.includes(tClean)) return true;
+
+        // 4. Keyword overlap (>= 75% match of significant keywords)
+        if (qWords.length >= 2) {
+          const tWords = getKeywords(trig);
+          if (tWords.length >= 2) {
+            const matchedWords = qWords.filter(w => tWords.includes(w));
+            if (matchedWords.length / qWords.length >= 0.75) {
+              return true;
+            }
+          }
+        }
       }
       return false;
     });

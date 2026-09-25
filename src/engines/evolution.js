@@ -267,15 +267,28 @@ class EvolutionEngine {
 
     const parts = [clean];
 
-    // Generate English/Urdu dual variations if applicable
+    // 1. Primary clause before conditional or secondary action
+    const clauseSplit = clean.split(/[,;]|(?:\b(?:agar\s+nahi|agar|if\s+not|if|warna)\b)/i);
+    if (clauseSplit.length > 1 && clauseSplit[0].trim().length >= 4) {
+      parts.push(clauseSplit[0].trim());
+    }
+
+    // 2. Remove "ya nahi" / "or not" variant
+    const noYaNahi = clean.replace(/\b(?:ya\s+nahi|or\s+not)\b[^\w]*/gi, '').trim();
+    if (noYaNahi && noYaNahi !== clean && noYaNahi.length >= 4) {
+      parts.push(noYaNahi);
+    }
+
+    // 3. Subject + action variant
     if (clean.includes('check')) {
-      parts.push(clean.replace('check', '').trim());
+      const noCheck = clean.replace(/\bcheck\b/gi, '').trim();
+      if (noCheck.length >= 4) parts.push(noCheck);
     }
     if (clean.includes('process')) {
       parts.push('processes');
     }
 
-    return Array.from(new Set(parts.filter(Boolean))).join('|');
+    return Array.from(new Set(parts.map(p => p.trim()).filter(p => p.length >= 3))).join('|');
   }
 
   /**

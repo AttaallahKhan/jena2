@@ -32,7 +32,11 @@ class LocalEngine {
     q = q.replace(/^(?:hey|suno|o|ai)?\s*jena\b[:,\s]*/i, '').trim();
 
     // 0. Mode status query & switching
-    if (/\b(online\s+ho\s+ya\s+offline|offline\s+ho\s+ya\s+online|current\s+mode|mode\s+kya\s+hai|status\s+kya\s+hai)\b/i.test(q)) {
+    if (
+      /\b(?:online\s+ho\s+ya\s+offline|offline\s+ho\s+ya\s+online|current\s+mode|mode\s+kya\s+hai|mode\s+kya\s+hay|status\s+kya\s+hai|status\s+kya\s+hay)\b/i.test(q) ||
+      /^(?:kya\s+)?(?:offline|online)\s+ho[\?\!\.]*$/i.test(q) ||
+      /^(?:offline\s+ho|online\s+ho)[\?\!\.]*$/i.test(q)
+    ) {
       return 'check_mode';
     }
 
@@ -362,7 +366,12 @@ class LocalEngine {
         const curMode = cfg.mode || 'online';
         const curProvider = cfg.activeProvider || 'groq';
         const curModel = cfg.activeModel || 'qwen/qwen3.8-27b';
-        return `🤖 **Jena Operating Status & Mode Report:**\n\n` +
+        const isOffline = curMode === 'offline';
+        const userGreeting = isOffline
+          ? 'Ji, main bilkul **Offline Mode (⚡ Zero Tokens)** mein hoon!'
+          : 'Ji, main bilkul **Online Cloud Mode (🌐)** mein hoon!';
+        return `${userGreeting}\n\n` +
+               `🤖 **Jena Operating Status & Mode Report:**\n` +
                `- 🌐 **Active Mode:** **${curMode.toUpperCase()}**\n` +
                `- ⚙️ **Active Provider:** \`${curProvider}\`\n` +
                `- 🧠 **Active Model:** \`${curModel}\`\n` +
