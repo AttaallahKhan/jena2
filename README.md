@@ -16,6 +16,7 @@ Jena v0.3 ko ground zero se aik ultra-minimalist, lightweight aur powerful archi
      - `terminal.js` : Safe bash execution with automated `-y` flag handling.
      - `system.js` : Termux hardware specs, battery, RAM, storage, and instant math.
      - `device.js` : Mobile hardware controls (Torch, Front/Back Camera, Media Scanner).
+     - `monitor.js` : Real-time system telemetry, hardware gauges, and live activity stream.
      - `git.js` : Git status, diff, log, and auto-commit & push to GitHub.
      - `gui.js` : Self-inspection and live DOM/CSS mutation.
      - `scaffold.js` : Offline full-stack web scaffolding & concept cheatsheets.
@@ -24,11 +25,18 @@ Jena v0.3 ko ground zero se aik ultra-minimalist, lightweight aur powerful archi
      - `logger.js` : Append-only conversation JSONL and failure audits.
      - `persona.js` : Autonomous female Jena persona prompt.
    - **Client Web UI (`public/`):**
-     - `index.html` : Cybernetic responsive interface with integrated Code Editor & File Tree.
-     - `style.css` : Dark-mode cybernetic styling and design tokens.
-     - `app.js` : Reactive client router, Monaco-like lightweight editor, and SSE stream parser.
+     - `index.html` : Cybernetic responsive interface with integrated Code Editor, File Tree & Live Monitor.
+     - `style.css` : Dark-mode cybernetic styling, responsive cards, progress gauges, and design tokens.
+     - `app.js` : Reactive 4-page router (Chat, Providers, Editor, Live Monitor) and SSE stream parser.
 
-2. **Dohra Dimaagh & Mode Switch (Hybrid AI Architecture):**
+2. **📡 Real-Time Live Monitor Dashboard (Page 4):**
+   - **Agent Status:** Jena process PID, uptime formatted, active Node version, architecture, and memory footprint.
+   - **Hardware Gauges:** Real-time Battery telemetry (%, Health, Temp, Charging status), RAM meter (`/proc/meminfo`), Termux and Phone storage partitions.
+   - **Device Controls:** Direct one-click control buttons for Torch toggle, Front Camera Selfie, Back Camera Photo, and Android Gallery Media Scan.
+   - **Self-Learned Intelligence Hub:** Displays all distilled operations with triggers, descriptions, and instant `⚡ Run Now` buttons with live output console.
+   - **Live Activity Stream:** Real-time table of recent interactions highlighting 0 tokens local executions versus cloud usage.
+
+3. **Dohra Dimaagh & Mode Switch (Hybrid AI Architecture):**
    - 🔘 **Local / Online Mode Switch:** Header mein direct `[🌐 Online]` aur `[⚡ Offline]` switch button mojood hai.
    - ⚡ **Offline Local Engine (Zero Tokens, Instant <0.1s):**
      - Provider dropdown mein `⚡ Offline / Local Engine` aur model `Jena Local Core` direct selectable hain.

@@ -55,6 +55,9 @@
         <button type="button" class="nav-tab" id="tabNavEditor">
           🛠️ Code Editor
         </button>
+        <button type="button" class="nav-tab" id="tabNavMonitor">
+          📡 Live Monitor
+        </button>
       </nav>
     </header>
 
@@ -556,6 +559,198 @@
           <div class="editor-info" id="editorFileInfo">public/style.css &bull; UTF-8</div>
           <div class="editor-cursor-pos" id="editorCursorPos">Line 1, Col 1 &bull; 0 chars</div>
           <div class="editor-hint">💡 Tip: <kbd>Ctrl+S</kbd> dabayein live save aur apply karne ke liye. <kbd>Tab</kbd> se 2 spaces insert hongi.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================================= -->
+    <!-- PAGE 4: LIVE MONITOR (Real-Time System, Hardware & Agent)  -->
+    <!-- ========================================================= -->
+    <section class="page-view" id="pageMonitor" style="display: none;">
+      <div class="monitor-container">
+        <!-- Monitor Top Control Bar -->
+        <div class="monitor-header-bar">
+          <div class="monitor-agent-status">
+            <span class="status-pulse-dot" id="monAgentDot"></span>
+            <div>
+              <div class="mon-status-title">JENA AGENT: <span id="monAgentStatusText">ACTIVE</span></div>
+              <div class="mon-status-meta">
+                <span>PID: <code id="monPid">-</code></span>
+                <span>Uptime: <code id="monUptime">-</code></span>
+                <span>Node: <code id="monNodeVer">-</code></span>
+                <span>Arch: <code id="monArch">-</code></span>
+              </div>
+            </div>
+          </div>
+          <div class="monitor-header-controls">
+            <label class="mon-refresh-label" for="monRefreshSelect">
+              <span>Auto Refresh:</span>
+              <select id="monRefreshSelect" class="form-select-sm">
+                <option value="3000" selected>Every 3s (Live)</option>
+                <option value="5000">Every 5s</option>
+                <option value="10000">Every 10s</option>
+                <option value="0">Manual Only</option>
+              </select>
+            </label>
+            <button type="button" class="btn btn-secondary btn-sm" id="btnRefreshMonitor" title="Refresh Live Telemetry Now">
+              🔄 Refresh
+            </button>
+          </div>
+        </div>
+
+        <!-- Telemetry Gauges Grid -->
+        <div class="monitor-gauge-grid">
+          <!-- Card 1: Battery Telemetry -->
+          <div class="mon-gauge-card" id="monCardBattery">
+            <div class="mon-card-header">
+              <span class="mon-card-icon">⚡</span>
+              <span class="mon-card-title">BATTERY TELEMETRY</span>
+              <span class="mon-badge" id="monBatteryStatusBadge">DISCHARGING</span>
+            </div>
+            <div class="mon-card-value" id="monBatteryPct">--%</div>
+            <div class="mon-progress-track">
+              <div class="mon-progress-bar" id="monBatteryBar" style="width: 0%;"></div>
+            </div>
+            <div class="mon-card-details">
+              <div class="mon-detail-item"><span>Health:</span> <strong id="monBatteryHealth">-</strong></div>
+              <div class="mon-detail-item"><span>Temperature:</span> <strong id="monBatteryTemp">-</strong></div>
+              <div class="mon-detail-item"><span>Plugged:</span> <strong id="monBatteryPlugged">-</strong></div>
+            </div>
+          </div>
+
+          <!-- Card 2: RAM Memory -->
+          <div class="mon-gauge-card" id="monCardRam">
+            <div class="mon-card-header">
+              <span class="mon-card-icon">🧠</span>
+              <span class="mon-card-title">SYSTEM RAM</span>
+              <span class="mon-badge" id="monRamPctBadge">0%</span>
+            </div>
+            <div class="mon-card-value" id="monRamUsedText">- GB / - GB</div>
+            <div class="mon-progress-track">
+              <div class="mon-progress-bar info" id="monRamBar" style="width: 0%;"></div>
+            </div>
+            <div class="mon-card-details">
+              <div class="mon-detail-item"><span>Available:</span> <strong id="monRamAvailText">-</strong></div>
+              <div class="mon-detail-item"><span>Process RSS:</span> <strong id="monProcRssText">-</strong></div>
+              <div class="mon-detail-item"><span>Heap Used:</span> <strong id="monProcHeapText">-</strong></div>
+            </div>
+          </div>
+
+          <!-- Card 3: Storage Filesystem -->
+          <div class="mon-gauge-card" id="monCardStorage">
+            <div class="mon-card-header">
+              <span class="mon-card-icon">💾</span>
+              <span class="mon-card-title">DEVICE STORAGE</span>
+              <span class="mon-badge" id="monStorageTermuxBadge">0%</span>
+            </div>
+            <div class="mon-card-value" id="monStorageTermuxText">- / -</div>
+            <div class="mon-progress-track">
+              <div class="mon-progress-bar purple" id="monStorageBar" style="width: 0%;"></div>
+            </div>
+            <div class="mon-card-details">
+              <div class="mon-detail-item"><span>Termux (/data):</span> <strong id="monStorageTermuxAvail">-</strong></div>
+              <div class="mon-detail-item"><span>Phone Storage:</span> <strong id="monStoragePhoneText">-</strong></div>
+              <div class="mon-detail-item"><span>CWD Path:</span> <code class="mon-code-path" id="monCwdPath">-</code></div>
+            </div>
+          </div>
+
+          <!-- Card 4: CPU & Engine State -->
+          <div class="mon-gauge-card" id="monCardCpu">
+            <div class="mon-card-header">
+              <span class="mon-card-icon">🖥️</span>
+              <span class="mon-card-title">PROCESSOR & ENGINE</span>
+              <span class="mon-badge success" id="monCpuArchBadge">arm64</span>
+            </div>
+            <div class="mon-card-value" id="monCpuCoresText">8 Cores</div>
+            <div class="mon-progress-track">
+              <div class="mon-progress-bar cyan" id="monCpuBar" style="width: 25%;"></div>
+            </div>
+            <div class="mon-card-details">
+              <div class="mon-detail-item"><span>Load Average:</span> <strong id="monCpuLoadText">-</strong></div>
+              <div class="mon-detail-item"><span>Platform:</span> <strong id="monPlatformText">-</strong></div>
+              <div class="mon-detail-item"><span>Mode:</span> <strong class="text-accent" id="monEngineModeText">Hybrid (Local + Cloud)</strong></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Hardware Controls Section -->
+        <div class="mon-section-card">
+          <div class="mon-section-header">
+            <div>
+              <h3>📱 Hardware Quick Controls (Termux API)</h3>
+              <p class="mon-section-sub">Direct device control via Jena offline micro-kernel — 0 tokens consumed</p>
+            </div>
+          </div>
+          <div class="mon-actions-bar">
+            <button type="button" class="btn btn-outline mon-action-btn" id="btnMonTorch">
+              <span class="mon-btn-icon">🔦</span>
+              <span>Torch / Flashlight: <strong id="monTorchStateText">Toggle</strong></span>
+            </button>
+            <button type="button" class="btn btn-outline mon-action-btn" id="btnMonSelfie">
+              <span class="mon-btn-icon">🤳</span>
+              <span>Take Front Selfie</span>
+            </button>
+            <button type="button" class="btn btn-outline mon-action-btn" id="btnMonPhoto">
+              <span class="mon-btn-icon">📸</span>
+              <span>Take Back Photo</span>
+            </button>
+            <button type="button" class="btn btn-outline mon-action-btn" id="btnMonMediaScan">
+              <span class="mon-btn-icon">🖼️</span>
+              <span>Rescan Android Gallery</span>
+            </button>
+          </div>
+          <div class="mon-action-feedback" id="monActionFeedback" style="display: none;"></div>
+        </div>
+
+        <!-- Self-Learned Intelligence & Operations Hub -->
+        <div class="mon-section-card">
+          <div class="mon-section-header">
+            <div>
+              <h3>🧠 Self-Learned Operations Hub (Offline 0 Tokens)</h3>
+              <p class="mon-section-sub">Tasks Jena learned online and distilled into local executable intelligence</p>
+            </div>
+            <span class="mon-badge success" id="monOpsBadge">0 Operations</span>
+          </div>
+
+          <div class="mon-ops-list" id="monOpsList">
+            <div class="mon-empty-state">Loading learned operations...</div>
+          </div>
+
+          <!-- Inline Execution Console for Operations -->
+          <div class="mon-op-console" id="monOpConsole" style="display: none;">
+            <div class="mon-op-console-header">
+              <span>⚡ Output Console: <strong id="monConsoleOpName">Operation</strong></span>
+              <button type="button" class="btn-xs-clean" id="btnCloseOpConsole">&times; Close</button>
+            </div>
+            <pre class="mon-op-console-body" id="monConsoleOutput"></pre>
+          </div>
+        </div>
+
+        <!-- Recent Activity Stream -->
+        <div class="mon-section-card">
+          <div class="mon-section-header">
+            <div>
+              <h3>📡 Real-Time Activity Feed</h3>
+              <p class="mon-section-sub">Latest interactions handled by Jena Local &amp; Cloud engines</p>
+            </div>
+          </div>
+          <div class="mon-table-wrapper">
+            <table class="mon-activity-table">
+              <thead>
+                <tr>
+                  <th>Timestamp</th>
+                  <th>Engine / Provider</th>
+                  <th>User Query / Action</th>
+                  <th>Assistant Response</th>
+                  <th>Tokens Consumed</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="monActivityTableBody">
+                <tr><td colspan="6" class="text-muted text-center">Loading activity stream...</td></tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </section>
