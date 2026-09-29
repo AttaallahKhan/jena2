@@ -2,7 +2,11 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#f5f1ea" id="themeColorMeta">
   <title>Jena v0.3 — Autonomous Hybrid AI Agent</title>
   <link rel="stylesheet" href="style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -11,51 +15,38 @@
 </head>
 <body>
   <div class="app-container">
-    <!-- Top Navigation Header -->
+    <!-- Top Mobile App Bar -->
     <header class="app-header">
-      <div class="brand">
-        <!-- Row 1: Avatar, Brand Name, Version Tag, Online/Offline Toggle, and Refresh Button -->
-        <div class="header-main-row">
-          <div class="header-left">
-            <div class="avatar-glow">🧚‍♀️</div>
+      <div class="header-main-row">
+        <div class="header-left">
+          <div class="avatar-glow">🧚‍♀️</div>
+          <div class="brand-text">
             <h1 class="brand-title">JENA <span class="version-tag">v0.3</span></h1>
-          </div>
-          
-          <div class="header-actions">
-            <!-- Mode Switch (Offline / Online) -->
-            <div class="mode-toggle-group" id="modeToggleGroup">
-              <button type="button" class="mode-toggle-btn active" id="btnModeOnline" data-mode="online">🌐 Online</button>
-              <button type="button" class="mode-toggle-btn" id="btnModeOffline" data-mode="offline">⚡ Offline</button>
+            <div class="header-status-pill">
+              <span class="pulse-dot"></span>
+              <span class="status-sub">Autonomous Hybrid Agent</span>
             </div>
-
-            <!-- Light / Dark Theme Toggle -->
-            <button type="button" class="btn-icon-header" id="btnThemeToggle" title="Toggle light/dark theme">
-              🌙
-            </button>
-
-            <!-- Page Refresh / Hot-Reload Button -->
-            <button type="button" class="btn-icon-header" id="btnPageRefresh" title="Live Refresh Styles (Shift+Click to reload page)">
-              🔄
-            </button>
           </div>
         </div>
+        
+        <div class="header-actions">
+          <!-- Mode Switch (Offline / Online) -->
+          <div class="mode-toggle-group" id="modeToggleGroup">
+            <button type="button" class="mode-toggle-btn active" id="btnModeOnline" data-mode="online">🌐 Online</button>
+            <button type="button" class="mode-toggle-btn" id="btnModeOffline" data-mode="offline">⚡ Offline</button>
+          </div>
 
-        <!-- Row 2: Subtitle -->
-        <p class="subtitle">Autonomous Hybrid AI Agent • Termux / Linux</p>
+          <!-- Light / Dark Theme Toggle -->
+          <button type="button" class="btn-icon-header" id="btnThemeToggle" title="Toggle light/dark theme">
+            🌙
+          </button>
+
+          <!-- Page Refresh / Hot-Reload Button -->
+          <button type="button" class="btn-icon-header" id="btnPageRefresh" title="Live Refresh Styles (Shift+Click to reload page)">
+            🔄
+          </button>
+        </div>
       </div>
-
-      <!-- Main Navigation Tabs (Page 1 vs Page 2 vs Page 3) -->
-      <nav class="nav-tabs">
-        <button type="button" class="nav-tab active" id="tabNavMain">
-          💬 Chat
-        </button>
-        <button type="button" class="nav-tab" id="tabNavSettings">
-          ⚙️ Providers & Models
-        </button>
-        <button type="button" class="nav-tab" id="tabNavEditor">
-          🛠️ Code Editor
-        </button>
-      </nav>
     </header>
 
     <!-- ========================================================= -->
@@ -86,26 +77,28 @@
         </div>
       </section>
 
-      <!-- Active Model Info Banner -->
-      <div class="active-model-bar">
-        <div class="active-model-info">
-          <span class="pulse-dot"></span>
-          <span class="active-model-label">Active Engine:</span>
-          <span class="active-model-name" id="mainActiveModelText">Groq &bull; Qwen 3.8 27B</span>
+      <!-- Compact Status Meta Strip -->
+      <div class="status-meta-row">
+        <!-- Active Model Info Banner -->
+        <div class="active-model-bar">
+          <div class="active-model-info">
+            <span class="pulse-dot"></span>
+            <span class="active-model-label">Engine:</span>
+            <span class="active-model-name" id="mainActiveModelText">Groq &bull; Qwen 3.8 27B</span>
+          </div>
         </div>
-        
-      </div>
 
-      <!-- CWD Path Indicator -->
-      <div class="cwd-status-bar">
-        <div class="cwd-info">
-          <span class="cwd-label">CWD:</span>
-          <code class="cwd-path" id="mainCwdText" title="/data/data/com.termux/files/home">home</code>
-        </div>
-        <div class="cwd-quick-actions">
-          <button type="button" class="btn-xs-cwd" id="btnQuickLs" title="List files in current directory">ls</button>
-          <button type="button" class="btn-xs-cwd" id="btnQuickTree" title="Folder tree view">tree</button>
-          <button type="button" class="btn-xs-cwd" id="btnQuickMemory" title="Learned operations & facts">memory</button>
+        <!-- CWD Path Indicator -->
+        <div class="cwd-status-bar">
+          <div class="cwd-info">
+            <span class="cwd-label">CWD:</span>
+            <code class="cwd-path" id="mainCwdText" title="/data/data/com.termux/files/home">home</code>
+          </div>
+          <div class="cwd-quick-actions">
+            <button type="button" class="btn-xs-cwd" id="btnQuickLs" title="List files in current directory">ls</button>
+            <button type="button" class="btn-xs-cwd" id="btnQuickTree" title="Folder tree view">tree</button>
+            <button type="button" class="btn-xs-cwd" id="btnQuickMemory" title="Learned operations & facts">mem</button>
+          </div>
         </div>
       </div>
 
@@ -142,23 +135,35 @@
         </div>
       </main>
 
-      <!-- Chat Input Area -->
+      <!-- Chat Input Area (Mobile App Docked Style) -->
       <footer class="app-footer">
+        <!-- Horizontal Quick Action Strip -->
+        <div class="mobile-quick-tray" id="mobileQuickTray">
+          <button type="button" class="quick-tray-chip" data-prompt="offline ho?">⚡ Offline?</button>
+          <button type="button" class="quick-tray-chip" data-prompt="battery check karo">🔋 Battery</button>
+          <button type="button" class="quick-tray-chip" data-prompt="kitni ram free hai">🧠 RAM</button>
+          <button type="button" class="quick-tray-chip" data-prompt="ls">📂 ls</button>
+          <button type="button" class="quick-tray-chip" data-prompt="pwd">📍 pwd</button>
+          <button type="button" class="quick-tray-chip" data-prompt="kya seekha hai">🧠 Memory</button>
+          <button type="button" class="quick-tray-chip" data-prompt="git status">🐙 Git</button>
+          <button type="button" class="quick-tray-chip" data-prompt="github commit push">🚀 Push</button>
+          <button type="button" class="quick-tray-chip" data-prompt="check karo zsh installed hay ya nahi">📦 Check zsh</button>
+        </div>
+
         <form id="chatForm" class="chat-form">
           <div class="input-wrapper">
             <textarea
               id="promptInput"
-              placeholder="Jena se kuch bhi poochhein ya task dein (Roman Urdu / English)..."
+              placeholder="Jena se poochhein ya task dein..."
               rows="1"
               required
             ></textarea>
             <button type="submit" id="btnSend" class="btn-send" title="Send (Enter)">
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5">
                 <path d="M22 2L11 13M22 2L15 22L11 13L2 9L22 2Z" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
             </button>
           </div>
-          
         </form>
       </footer>
     </section>
@@ -560,7 +565,21 @@
       </div>
     </section>
 
-    <!-- Allowance Edit Modal (quick token budget edit on allowance card click) -->
+    <!-- Bottom Navigation Bar (Mobile App Style) -->
+    <nav class="nav-tabs mobile-bottom-nav" id="appBottomNav">
+      <button type="button" class="nav-tab active" id="tabNavMain">
+        <span class="nav-tab-icon">💬</span>
+        <span class="nav-tab-label">Chat</span>
+      </button>
+      <button type="button" class="nav-tab" id="tabNavSettings">
+        <span class="nav-tab-icon">⚙️</span>
+        <span class="nav-tab-label">Settings</span>
+      </button>
+      <button type="button" class="nav-tab" id="tabNavEditor">
+        <span class="nav-tab-icon">🛠️</span>
+        <span class="nav-tab-label">Editor</span>
+      </button>
+    </nav>
     <div class="modal-backdrop" id="allowanceModal" style="display: none;">
       <div class="modal-card modal-sm">
         <div class="modal-header">
