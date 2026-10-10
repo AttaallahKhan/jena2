@@ -102,13 +102,30 @@ function startServer() {
   };
 
   const resolveEditorPath = (reqPath) => {
-    if (!reqPath) return __dirname;
+    const homeBoundary = process.env.HOME || '/data/data/com.termux/files/home';
+    if (!reqPath || typeof reqPath !== 'string') return __dirname;
     let clean = reqPath.trim();
-    let resolved = path.isAbsolute(clean)
-      ? path.normalize(clean)
-      : path.normalize(path.join(__dirname, clean));
+    if (!clean) return __dirname;
+    if (clean === '~' || clean === '$HOME' || clean.toLowerCase() === 'home') return homeBoundary;
+    if (clean.startsWith('~/')) {
+      clean = path.join(homeBoundary, clean.slice(2));
+    }
 
-    const homeBoundary = '/data/data/com.termux/files/home';
+    let resolved;
+    if (path.isAbsolute(clean)) {
+      resolved = path.normalize(clean);
+    } else {
+      const inJena = path.normalize(path.join(__dirname, clean));
+      const inHome = path.normalize(path.join(homeBoundary, clean));
+      if (fs.existsSync(inJena)) {
+        resolved = inJena;
+      } else if (fs.existsSync(inHome)) {
+        resolved = inHome;
+      } else {
+        resolved = inJena;
+      }
+    }
+
     if (!resolved.startsWith(homeBoundary) && !resolved.startsWith(__dirname)) {
       throw new Error('Access Denied: Path outside allowed workspace');
     }
@@ -393,19 +410,20 @@ function startServer() {
     // --- CODE EDITOR API ---
     if (pathname === '/api/editor/tree' && method === 'GET') {
       try {
+        const homeBoundary = process.env.HOME || '/data/data/com.termux/files/home';
         const reqDir = parsedUrl.searchParams.get('dir') || '';
-        const targetDir = resolveEditorPath(reqDir);
+        const targetDir = reqDir ? resolveEditorPath(reqDir) : __dirname;
         if (!fs.existsSync(targetDir) || !fs.statSync(targetDir).isDirectory()) {
-          return sendJson(404, { error: `Directory '${reqDir}' not found.` });
+          return sendJson(404, { error: `Directory '${reqDir || targetDir}' not found.` });
         }
 
         const buildTree = (dir, depth = 0) => {
-          if (depth > 3) return [];
+          if (depth > 2) return [];
           let items = [];
           try { items = fs.readdirSync(dir, { withFileTypes: true }); }
           catch (_) { return []; }
 
-          const ignored = ['.git', 'node_modules', '.cache', '.gemini', '.hermes'];
+          const ignored = ['.git', 'node_modules', '.cache', '.gemini', '.hermes', '.cargo', '.npm', '.local', '.termux', '.lesshst', '.wget-hsts'];
           const result = [];
 
           items.sort((a, b) => {
@@ -417,7 +435,6 @@ function startServer() {
           for (const item of items) {
             if (ignored.includes(item.name)) continue;
             const fullPath = path.join(dir, item.name);
-            const relPath = path.relative(__dirname, fullPath);
             const isDir = item.isDirectory();
 
             let size = 0;
@@ -427,22 +444,28 @@ function startServer() {
 
             result.push({
               name: item.name,
-              path: relPath,
+              path: fullPath,
               fullPath,
               isDir,
               size,
-              children: isDir ? buildTree(fullPath, depth + 1) : null
+              children: isDir && depth < 1 ? buildTree(fullPath, depth + 1) : null
             });
           }
           return result;
         };
 
+        const isHome = (path.resolve(targetDir) === path.resolve(homeBoundary));
+        const parentDir = isHome ? null : path.dirname(targetDir);
+
         const tree = buildTree(targetDir, 0);
         return sendJson(200, {
           success: true,
           root: targetDir,
-          name: path.basename(targetDir),
-          relativeRoot: path.relative(__dirname, targetDir) || '.',
+          name: path.basename(targetDir) || 'home',
+          isHome,
+          parentDir,
+          homeDir: homeBoundary,
+          jenaDir: __dirname,
           items: tree
         });
       } catch (err) {
@@ -521,7 +544,14 @@ function startServer() {
         const requested = (body.path || '').trim();
         if (!requested) return sendJson(400, { error: 'File path is required.' });
 
-        const targetPath = resolveEditorPath(requested);
+        let targetPath;
+        if (body.dir && !path.isAbsolute(requested) && !requested.startsWith('~')) {
+          const baseDir = resolveEditorPath(body.dir);
+          targetPath = resolveEditorPath(path.join(baseDir, requested));
+        } else {
+          targetPath = resolveEditorPath(requested);
+        }
+
         if (fs.existsSync(targetPath)) {
           return sendJson(400, { error: `File '${path.basename(targetPath)}' pehle se mojood hai.` });
         }
@@ -532,7 +562,7 @@ function startServer() {
         return sendJson(200, {
           success: true,
           message: `Nayi file '${path.basename(targetPath)}' ban gayi!`,
-          file: path.relative(__dirname, targetPath),
+          file: targetPath,
           fullPath: targetPath
         });
       } catch (err) {
@@ -546,7 +576,14 @@ function startServer() {
         const requested = (body.path || '').trim();
         if (!requested) return sendJson(400, { error: 'Folder path is required.' });
 
-        const targetPath = resolveEditorPath(requested);
+        let targetPath;
+        if (body.dir && !path.isAbsolute(requested) && !requested.startsWith('~')) {
+          const baseDir = resolveEditorPath(body.dir);
+          targetPath = resolveEditorPath(path.join(baseDir, requested));
+        } else {
+          targetPath = resolveEditorPath(requested);
+        }
+
         if (fs.existsSync(targetPath)) {
           return sendJson(400, { error: `Folder '${path.basename(targetPath)}' pehle se mojood hai.` });
         }
@@ -555,7 +592,7 @@ function startServer() {
         return sendJson(200, {
           success: true,
           message: `Naya folder '${path.basename(targetPath)}' ban gaya!`,
-          folder: path.relative(__dirname, targetPath),
+          folder: targetPath,
           fullPath: targetPath
         });
       } catch (err) {
@@ -570,7 +607,8 @@ function startServer() {
         if (!requested) return sendJson(400, { error: 'Path is required.' });
 
         const targetPath = resolveEditorPath(requested);
-        if (targetPath === __dirname || targetPath === '/data/data/com.termux/files/home') {
+        const homeBoundary = process.env.HOME || '/data/data/com.termux/files/home';
+        if (targetPath === __dirname || targetPath === homeBoundary) {
           return sendJson(400, { error: 'Root directory delete nahi ki ja sakti.' });
         }
         if (!fs.existsSync(targetPath)) {

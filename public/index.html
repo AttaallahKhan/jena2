@@ -962,6 +962,87 @@
       padding: 2px 5px;
     }
 
+    .drawer-nav-bar {
+      padding: 8px 12px;
+      background: var(--app-surface);
+      border-bottom: 1px solid var(--app-border);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .drawer-nav-quick {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .drawer-nav-btn {
+      padding: 4px 8px;
+      border-radius: 6px;
+      background: var(--app-surface-2);
+      border: 1px solid var(--app-border);
+      color: var(--app-text);
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.15s ease;
+    }
+
+    .drawer-nav-btn:hover:not(:disabled) {
+      background: var(--chip-bg);
+      color: var(--app-accent);
+      border-color: var(--app-border-accent);
+    }
+
+    .drawer-nav-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .drawer-nav-path {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10.5px;
+      color: var(--app-text-muted);
+      background: var(--app-surface-2);
+      padding: 4px 8px;
+      border-radius: 6px;
+      border: 1px solid var(--app-border);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      direction: rtl;
+      text-align: left;
+    }
+
+    .tree-item-actions {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+    }
+
+    .tree-action-btn {
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      font-size: 11px;
+      padding: 1px 4px;
+      border-radius: 4px;
+      opacity: 0.6;
+      color: var(--app-text-muted);
+      transition: opacity 0.15s;
+    }
+
+    .tree-action-btn:hover {
+      opacity: 1;
+      background: var(--app-surface-2);
+      color: var(--app-text);
+    }
+
     .drawer-body {
       flex: 1;
       overflow-y: auto;
@@ -1498,6 +1579,7 @@
           <button class="editor-chip active" onclick="loadEditorFile('public/index.html')">📄 index.html</button>
           <button class="editor-chip" onclick="loadEditorFile('public/style.css')">🎨 style.css</button>
           <button class="editor-chip" onclick="loadEditorFile('server.js')">⚡ server.js</button>
+          <button class="editor-chip" onclick="loadEditorFile('GEMINI.md')">📝 GEMINI.md</button>
         </div>
         <div class="editor-ctrl-actions">
           <span class="editor-status-pill" id="editorStatus">● Saved</span>
@@ -1523,16 +1605,27 @@
       <div class="editor-drawer" id="editorFileBrowserDrawer">
         <div class="drawer-header">
           <div class="drawer-title">
-            <span>📁 Project Files</span>
+            <span>📁 File Explorer</span>
             <span class="drawer-root-badge" id="drawerProjectName">jena</span>
           </div>
           <div class="drawer-actions">
             <button class="drawer-tool-btn" onclick="promptCreateFile()" title="Create File">➕ File</button>
             <button class="drawer-tool-btn" onclick="promptCreateFolder()" title="Create Folder">📁+ Folder</button>
-            <button class="drawer-tool-btn" onclick="loadEditorTree()" title="Refresh Tree">🔄</button>
+            <button class="drawer-tool-btn" onclick="loadEditorTree(currentTreeRoot)" title="Refresh Tree">🔄</button>
             <button class="drawer-tool-btn close-btn" onclick="toggleFileBrowserDrawer()" title="Close">✖</button>
           </div>
         </div>
+
+        <!-- DIRECTORY NAVIGATION BAR (HOME, JENA, UP) -->
+        <div class="drawer-nav-bar">
+          <div class="drawer-nav-quick">
+            <button class="drawer-nav-btn" id="drawerUpBtn" onclick="navigateEditorUp()" title="Parent Directory (Up)">⬆️ Up</button>
+            <button class="drawer-nav-btn" onclick="loadEditorTree(treeHomeDir)" title="Termux Home (~)">🏠 Home</button>
+            <button class="drawer-nav-btn" onclick="loadEditorTree(treeJenaDir)" title="Jena Project">📁 Jena</button>
+          </div>
+          <div class="drawer-nav-path" id="drawerCurrentPathLabel" title="Current Directory">~/jena</div>
+        </div>
+
         <div class="drawer-body" id="editorFileTreeContainer">
           <div style="padding: 12px; font-size: 11.5px; color: var(--app-text-muted);">Explorer load ho raha hai...</div>
         </div>
@@ -1825,6 +1918,20 @@
     let currentEditorPath = 'public/index.html';
     let editorOriginalContent = '';
     let isEditorInitialized = false;
+    let currentTreeRoot = '';
+    let currentParentDir = null;
+    let treeHomeDir = '/data/data/com.termux/files/home';
+    let treeJenaDir = '/data/data/com.termux/files/home/jena';
+
+    function formatDisplayPath(absPath) {
+      if (!absPath) return '~';
+      const home = treeHomeDir || '/data/data/com.termux/files/home';
+      if (absPath === home) return '~';
+      if (absPath.startsWith(home + '/')) {
+        return '~/' + absPath.slice(home.length + 1);
+      }
+      return absPath;
+    }
 
     async function initEditor() {
       if (!isEditorInitialized) {
@@ -1843,7 +1950,7 @@
         statusPill.innerText = '⏳ Loading...';
         statusPill.className = 'editor-status-pill';
       }
-      if (pathLabel) pathLabel.innerText = filePath;
+      if (pathLabel) pathLabel.innerText = formatDisplayPath(filePath);
 
       document.querySelectorAll('.editor-chip').forEach(c => {
         c.classList.toggle('active', c.innerText.includes(filePath.split('/').pop()));
@@ -1990,22 +2097,38 @@
       } else {
         drawer.classList.add('open');
         backdrop.classList.add('open');
-        loadEditorTree();
+        loadEditorTree(currentTreeRoot || '');
       }
     }
 
-    async function loadEditorTree() {
+    async function loadEditorTree(dirPath) {
       const container = document.getElementById('editorFileTreeContainer');
       const rootBadge = document.getElementById('drawerProjectName');
+      const pathLabel = document.getElementById('drawerCurrentPathLabel');
+      const upBtn = document.getElementById('drawerUpBtn');
       if (!container) return;
 
       container.innerHTML = '<div style="padding: 12px; font-size: 11.5px; color: var(--app-text-muted);">Explorer load ho raha hai...</div>';
 
       try {
-        const res = await fetch('/api/editor/tree');
+        const query = dirPath ? `?dir=${encodeURIComponent(dirPath)}` : '';
+        const res = await fetch(`/api/editor/tree${query}`);
         const data = await res.json();
         if (data.success && Array.isArray(data.items)) {
-          if (rootBadge) rootBadge.innerText = data.name || 'jena';
+          currentTreeRoot = data.root;
+          currentParentDir = data.parentDir;
+          if (data.homeDir) treeHomeDir = data.homeDir;
+          if (data.jenaDir) treeJenaDir = data.jenaDir;
+
+          if (rootBadge) rootBadge.innerText = data.name || 'folder';
+          if (pathLabel) {
+            pathLabel.innerText = formatDisplayPath(data.root);
+            pathLabel.title = data.root;
+          }
+          if (upBtn) {
+            upBtn.disabled = !data.parentDir;
+          }
+
           container.innerHTML = '';
           renderTreeNodes(data.items, container);
         } else {
@@ -2013,6 +2136,12 @@
         }
       } catch (err) {
         container.innerHTML = `<div style="padding: 12px; font-size: 11.5px; color: #ef4444;">Error: ${err.message}</div>`;
+      }
+    }
+
+    function navigateEditorUp() {
+      if (currentParentDir) {
+        loadEditorTree(currentParentDir);
       }
     }
 
@@ -2045,6 +2174,7 @@
       }
 
       items.forEach(item => {
+        const targetPath = item.fullPath || item.path;
         if (item.isDir) {
           const folderDiv = document.createElement('div');
           folderDiv.className = 'tree-folder';
@@ -2052,11 +2182,14 @@
           const header = document.createElement('div');
           header.className = 'tree-folder-header';
           header.innerHTML = `
-            <div class="tree-item-left">
+            <div class="tree-item-left" title="${escapeHtml(targetPath)}">
               <span class="folder-arrow">📁</span>
-              <span>${escapeHtml(item.name)}</span>
+              <span style="font-weight: 600;">${escapeHtml(item.name)}</span>
             </div>
-            <button class="tree-delete-btn" title="Delete Folder">&times;</button>
+            <div class="tree-item-actions">
+              <button class="tree-action-btn" title="Go inside folder (Root)">📂</button>
+              <button class="tree-delete-btn" title="Delete Folder">&times;</button>
+            </div>
           `;
 
           const childrenDiv = document.createElement('div');
@@ -2079,10 +2212,19 @@
             header.querySelector('.folder-arrow').innerText = isHidden ? '📂' : '📁';
           };
 
+          // Go inside folder as tree root
+          const actionBtn = header.querySelector('.tree-action-btn');
+          if (actionBtn) {
+            actionBtn.onclick = (e) => {
+              e.stopPropagation();
+              loadEditorTree(targetPath);
+            };
+          }
+
           // Delete folder
           header.querySelector('.tree-delete-btn').onclick = (e) => {
             e.stopPropagation();
-            deleteEditorItem(item.path);
+            deleteEditorItem(targetPath);
           };
 
           folderDiv.appendChild(header);
@@ -2091,10 +2233,11 @@
 
         } else {
           const fileDiv = document.createElement('div');
-          fileDiv.className = 'tree-file-item' + (item.path === currentEditorPath ? ' active' : '');
+          const isCurrent = (targetPath === currentEditorPath || (targetPath && currentEditorPath && targetPath.endsWith(currentEditorPath)));
+          fileDiv.className = 'tree-file-item' + (isCurrent ? ' active' : '');
           const sizeKb = (item.size / 1024).toFixed(1);
           fileDiv.innerHTML = `
-            <div class="tree-item-left" title="${escapeHtml(item.path)} (${sizeKb} KB)">
+            <div class="tree-item-left" title="${escapeHtml(targetPath)} (${sizeKb} KB)">
               <span>${getEditorFileIcon(item.name)}</span>
               <span>${escapeHtml(item.name)}</span>
             </div>
@@ -2102,13 +2245,13 @@
           `;
 
           fileDiv.querySelector('.tree-item-left').onclick = () => {
-            loadEditorFile(item.path);
+            loadEditorFile(targetPath);
             toggleFileBrowserDrawer();
           };
 
           fileDiv.querySelector('.tree-delete-btn').onclick = (e) => {
             e.stopPropagation();
-            deleteEditorItem(item.path);
+            deleteEditorItem(targetPath);
           };
 
           container.appendChild(fileDiv);
@@ -2117,19 +2260,20 @@
     }
 
     async function promptCreateFile() {
-      const fileName = prompt('Nayi file ka path enter karein (e.g. script.js ya public/about.html):');
+      const hint = formatDisplayPath(currentTreeRoot);
+      const fileName = prompt(`[${hint}] me nayi file ka naam enter karein (e.g. test.js ya subfolder/app.py):`);
       if (!fileName || !fileName.trim()) return;
 
       try {
         const res = await fetch('/api/editor/create-file', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ path: fileName.trim() })
+          body: JSON.stringify({ path: fileName.trim(), dir: currentTreeRoot })
         });
         const data = await res.json();
         if (data.success) {
-          await loadEditorTree();
-          await loadEditorFile(fileName.trim());
+          await loadEditorTree(currentTreeRoot);
+          await loadEditorFile(data.fullPath || fileName.trim());
           toggleFileBrowserDrawer();
         } else {
           alert('Error: ' + (data.error || 'File create nahi ho saki'));
@@ -2140,18 +2284,19 @@
     }
 
     async function promptCreateFolder() {
-      const folderName = prompt('Naye folder ka path enter karein (e.g. assets ya src/components):');
+      const hint = formatDisplayPath(currentTreeRoot);
+      const folderName = prompt(`[${hint}] me naye folder ka naam enter karein (e.g. models ya src):`);
       if (!folderName || !folderName.trim()) return;
 
       try {
         const res = await fetch('/api/editor/create-folder', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ path: folderName.trim() })
+          body: JSON.stringify({ path: folderName.trim(), dir: currentTreeRoot })
         });
         const data = await res.json();
         if (data.success) {
-          await loadEditorTree();
+          await loadEditorTree(currentTreeRoot);
         } else {
           alert('Error: ' + (data.error || 'Folder create nahi ho saka'));
         }
@@ -2161,7 +2306,8 @@
     }
 
     async function deleteEditorItem(pathToDelete) {
-      if (!confirm(`Kya aap waqai '${pathToDelete}' ko hamesha ke liye delete karna chahte hain?`)) return;
+      const display = formatDisplayPath(pathToDelete);
+      if (!confirm(`Kya aap waqai '${display}' ko hamesha ke liye delete karna chahte hain?`)) return;
 
       try {
         const res = await fetch('/api/editor/delete', {
@@ -2171,7 +2317,7 @@
         });
         const data = await res.json();
         if (data.success) {
-          await loadEditorTree();
+          await loadEditorTree(currentTreeRoot);
           if (currentEditorPath === pathToDelete) {
             loadEditorFile('public/index.html');
           }
