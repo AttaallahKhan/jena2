@@ -474,10 +474,16 @@
       overflow-y: auto;
       display: none;
       flex-direction: column;
+      min-height: 0;
     }
 
     .app-screen.active {
-      display: flex;
+      display: flex !important;
+    }
+
+    #screen-editor {
+      overflow: hidden;
+      min-height: 0;
     }
 
     .screen-padded {
@@ -809,6 +815,7 @@
 
     .editor-code-container {
       flex: 1;
+      min-height: 0;
       display: flex;
       overflow: hidden;
       background: var(--code-bg);
@@ -1314,7 +1321,7 @@
     </div>
 
     <!-- SCREEN 3: IN-APP CODE EDITOR (MANUAL HTML, CSS & CODE EDITING) -->
-    <div class="app-screen" id="screen-editor" style="display: none; flex-direction: column;">
+    <div class="app-screen" id="screen-editor">
       <!-- EDITOR HEADER & FILE TABS -->
       <div class="editor-top-bar">
         <div class="editor-file-chips" id="editorQuickChips">
@@ -1790,8 +1797,11 @@
     }
 
     function switchNav(btn, tab) {
+      if (!btn) {
+        btn = document.querySelector(`.nav-tab[data-tab="${tab}"]`);
+      }
       document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-      btn.classList.add('active');
+      if (btn) btn.classList.add('active');
 
       document.querySelectorAll('.app-screen').forEach(s => s.classList.remove('active'));
       const target = document.getElementById('screen-' + tab);
