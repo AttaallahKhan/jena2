@@ -1321,6 +1321,7 @@
           <button class="editor-chip active" onclick="loadEditorFile('public/index.html')">📄 index.html</button>
           <button class="editor-chip" onclick="loadEditorFile('public/style.css')">🎨 style.css</button>
           <button class="editor-chip" onclick="loadEditorFile('server.js')">⚡ server.js</button>
+          <button class="editor-chip" onclick="promptOpenCustomFile()">📁 Open...</button>
         </div>
         <div class="editor-ctrl-actions">
           <span class="editor-status-pill" id="editorStatus">● Saved</span>
@@ -1333,7 +1334,7 @@
       <!-- WORKSPACE AREA: LINE NUMBERS & TEXTAREA -->
       <div class="editor-code-container">
         <div class="editor-gutter" id="editorLineNumbers">1</div>
-        <textarea class="editor-code-box" id="editorTextarea" spellcheck="false" autocomplete="off" autocapitalize="off" oninput="onEditorInput()" onkeydown="onEditorKeyDown(event)" placeholder="File content loading..."></textarea>
+        <textarea class="editor-code-box" id="editorTextarea" spellcheck="false" autocomplete="off" autocapitalize="off" oninput="onEditorInput()" onkeydown="onEditorKeyDown(event)" onscroll="syncEditorScroll()" placeholder="File content loading..."></textarea>
       </div>
 
       <!-- EDITOR FOOTER -->
@@ -1771,6 +1772,21 @@
       const line = textBefore.split('\n').length;
       const col = textBefore.split('\n').pop().length + 1;
       meta.innerText = `Line ${line}, Col ${col}`;
+    }
+
+    function syncEditorScroll() {
+      const textarea = document.getElementById('editorTextarea');
+      const gutter = document.getElementById('editorLineNumbers');
+      if (textarea && gutter) {
+        gutter.scrollTop = textarea.scrollTop;
+      }
+    }
+
+    function promptOpenCustomFile() {
+      const target = prompt('Barah-e-karam file path enter karein:\n(e.g. src/engines/local.js ya package.json)', currentEditorPath);
+      if (target && target.trim()) {
+        loadEditorFile(target.trim());
+      }
     }
 
     function switchNav(btn, tab) {
