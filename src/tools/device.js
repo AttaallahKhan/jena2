@@ -24,6 +24,8 @@ class DeviceTools {
     return defaultDir;
   }
 
+  static isTorchOn = false;
+
   static setTorch(state = 'on') {
     return new Promise(resolve => {
       const mode = (state || '').toLowerCase() === 'off' ? 'off' : 'on';
@@ -34,6 +36,7 @@ class DeviceTools {
         if (err) {
           return resolve(`❌ **Torch Error:** Torch switch nahi ho saki: ${err.message}\n*(Termux:API app aur permissions check karein.)*`);
         }
+        DeviceTools.isTorchOn = (mode === 'on');
         if (mode === 'on') {
           resolve(
             `🔦 **Torch / Flashlight:** Mobile ki torch **ON** kar di gayi hai!\n\n` +
@@ -44,6 +47,10 @@ class DeviceTools {
         }
       });
     });
+  }
+
+  static toggleTorch() {
+    return this.setTorch(this.isTorchOn ? 'off' : 'on');
   }
 
   static takePhoto(facing = 'front') {

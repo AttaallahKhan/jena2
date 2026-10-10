@@ -18,102 +18,17 @@
 
     body {
       font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-      min-height: 100vh;
+      height: 100vh;
+      height: 100dvh;
+      margin: 0;
+      padding: 0;
       display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: flex-start;
-      background: var(--body-bg, #050608);
+      justify-content: center;
+      align-items: stretch;
+      background: var(--body-bg, #070c12);
       color: var(--app-text, #f1f5f9);
       transition: background 0.3s ease, color 0.3s ease;
-      overflow-x: hidden;
-      padding-bottom: 24px;
-    }
-
-    /* Top Sticky Theme Controller Bar */
-    .theme-controller {
-      position: sticky;
-      top: 0;
-      z-index: 1000;
-      width: 100%;
-      max-width: 480px;
-      padding: 12px 16px;
-      background: var(--ctrl-bg, rgba(10, 12, 16, 0.95));
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      border-bottom: 1px solid var(--ctrl-border, rgba(255, 255, 255, 0.1));
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-      transition: all 0.3s ease;
-    }
-
-    .controller-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .controller-title {
-      font-size: 13px;
-      font-weight: 800;
-      text-transform: uppercase;
-      letter-spacing: 0.8px;
-      color: var(--ctrl-title, #f1f5f9);
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .controller-title span.pulse-dot {
-      width: 9px;
-      height: 9px;
-      border-radius: 50%;
-      background: #10b981;
-      box-shadow: 0 0 10px #10b981;
-    }
-
-    .theme-tabs {
-      display: flex;
-      gap: 5px;
-      background: var(--ctrl-tab-bg, rgba(255, 255, 255, 0.06));
-      padding: 4px;
-      border-radius: 14px;
-      border: 1px solid var(--ctrl-tab-border, rgba(255, 255, 255, 0.08));
-      overflow-x: auto;
-      scrollbar-width: none;
-    }
-
-    .theme-tabs::-webkit-scrollbar {
-      display: none;
-    }
-
-    .theme-btn {
-      flex: 1;
-      min-width: 90px;
-      padding: 8px 6px;
-      border: none;
-      border-radius: 10px;
-      background: transparent;
-      color: var(--ctrl-btn-text, #94a3b8);
-      font-family: inherit;
-      font-size: 11.5px;
-      font-weight: 700;
-      cursor: pointer;
-      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 4px;
-      text-align: center;
-      white-space: nowrap;
-    }
-
-    .theme-btn.active {
-      background: var(--ctrl-btn-active-bg, #38bdf8);
-      color: var(--ctrl-btn-active-text, #0b131b);
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      overflow: hidden;
     }
 
     /* ========================================================
@@ -267,8 +182,8 @@
     .phone-container {
       width: 100%;
       max-width: 480px;
-      height: calc(100vh - 80px);
-      height: calc(100dvh - 80px);
+      height: 100vh;
+      height: 100dvh;
       background: var(--app-bg);
       display: flex;
       flex-direction: column;
@@ -278,12 +193,15 @@
       overflow: hidden;
     }
 
-    @media (min-width: 480px) {
+    @media (min-width: 481px) {
+      body {
+        align-items: center;
+        padding: 20px 0;
+      }
       .phone-container {
-        margin-top: 14px;
         border-radius: 36px;
         height: 840px;
-        max-height: 840px;
+        max-height: 92vh;
       }
     }
 
@@ -754,14 +672,15 @@
 
     /* Mobile Bottom Navigation Bar */
     .bottom-nav {
-      height: 60px;
-      min-height: 60px;
+      height: 62px;
+      min-height: 62px;
       background: var(--app-surface);
       border-top: 1px solid var(--app-border);
       display: flex;
       align-items: center;
       justify-content: space-around;
       padding: 0 8px;
+      padding-bottom: env(safe-area-inset-bottom, 0px);
       flex-shrink: 0;
       z-index: 999;
     }
@@ -1030,27 +949,7 @@
     }
   </style>
 </head>
-<body data-theme="slate-light">
-
-  <!-- TOP THEME CONTROLLER BAR -->
-  <div class="theme-controller">
-    <div class="controller-header">
-      <div class="controller-title">
-        <span class="pulse-dot"></span> Jena Theme Studio
-      </div>
-      <span style="font-size: 11px; color: var(--app-accent); font-weight: 700;" id="themeLabel">Light 1: Nordic Slate</span>
-    </div>
-
-    <!-- 2 FINALIZED THEMES: DARK SLATE + LIGHT SLATE -->
-    <div class="theme-tabs" style="max-width: 320px; margin: 0 auto; width: 100%;">
-      <button class="theme-btn" data-target="slate-dark" onclick="setTheme('slate-dark', 'Dark Slate & Ocean')">
-        🌙 Dark Slate
-      </button>
-      <button class="theme-btn active" data-target="slate-light" onclick="setTheme('slate-light', 'Nordic Slate Light')">
-        ❄️ Light Slate (Light 1)
-      </button>
-    </div>
-  </div>
+<body data-theme="slate-dark">
 
   <!-- PHONE CONTAINER -->
   <div class="phone-container">
@@ -1147,7 +1046,7 @@
 
       <!-- MOBILE INPUT DOCK (NO CHIPS - CLEAN & NATIVE) -->
       <div class="input-dock">
-        <button class="mic-btn" title="Voice Input" onclick="alert('Mic input ready')">🎙️</button>
+        <button class="mic-btn" title="Voice Input" onclick="toggleVoiceInput()">🎙️</button>
         <div class="input-wrapper">
           <input type="text" class="msg-input" id="userInput" placeholder="Jena ko koi sawal ya command dein..." onkeydown="handleKey(event)">
         </div>
@@ -1847,7 +1746,7 @@
       botBubble.className = 'bubble-bot';
       botBubble.innerHTML = `
         <div class="bot-header-meta">
-          <span class="engine-pill">${isOnline ? 'Cloud AI' : 'Lightweight Engine'}</span>
+          <span class="engine-pill">${isOnline ? 'Cloud AI' : 'Offline Core'}</span>
           <span class="latency-meta">thinking...</span>
         </div>
         <div class="typing-dots"><span></span><span></span><span></span></div>
@@ -1859,10 +1758,17 @@
       const startTime = performance.now();
 
       try {
+        const payload = {
+          message: text,
+          mode: isOnline ? 'online' : 'offline',
+          provider: isOnline ? (activeConfig?.activeProvider || 'groq') : 'offline',
+          model: isOnline ? activeConfig?.activeModel : undefined
+        };
+
         const res = await fetch('/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: text })
+          body: JSON.stringify(payload)
         });
 
         if (!res.ok) throw new Error('Status ' + res.status);
@@ -1871,23 +1777,38 @@
         const decoder = new TextDecoder();
         let fullText = '';
         let thoughts = '';
-        let mode = isOnline ? 'cloud' : 'offline';
+        let mode = isOnline ? 'online' : 'offline';
+        let providerName = '';
         let latencyStr = '';
+        let buffer = '';
 
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
-          const chunk = decoder.decode(value);
-          const lines = chunk.split('\n');
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
+          buffer += decoder.decode(value, { stream: true });
+          const parts = buffer.split('\n\n');
+          buffer = parts.pop();
+          for (const part of parts) {
+            const trimmed = part.trim();
+            if (trimmed.startsWith('data:')) {
               try {
-                const data = JSON.parse(line.slice(6));
-                if (data.type === 'token') fullText += data.content;
-                else if (data.type === 'thought') thoughts += data.content + '\n';
-                else if (data.type === 'done') {
-                  mode = data.mode || mode;
+                const data = JSON.parse(trimmed.replace(/^data:\s*/, ''));
+                if (data.type === 'token') {
+                  fullText += (data.content || '');
+                } else if (data.type === 'thought') {
+                  thoughts += (data.content || '') + '\n';
+                } else if (data.type === 'done') {
+                  if (data.text) fullText = data.text;
+                  if (data.provider) providerName = data.provider.toUpperCase();
+                  if (data.stats && data.stats.mode) mode = data.stats.mode;
+                  if (data.mode) mode = data.mode;
                   if (data.latency) latencyStr = (data.latency / 1000).toFixed(2) + 's ⚡';
+                  if (data.stats && data.stats.speed && data.stats.speed !== 9999) {
+                    const elapsed = data.stats.elapsedSeconds ? `${data.stats.elapsedSeconds}s ⚡` : latencyStr;
+                    latencyStr = `${data.stats.speed} t/s • ${elapsed}`;
+                  }
+                } else if (data.type === 'error') {
+                  fullText = `⚠️ Error: ${data.error || 'Execution failed'}`;
                 }
               } catch(e) {}
             }
@@ -1897,12 +1818,15 @@
         const elapsed = ((performance.now() - startTime) / 1000).toFixed(2) + 's ⚡';
         latencyStr = latencyStr || elapsed;
 
+        const isCloud = (mode === 'online' || mode === 'cloud');
+        const pillText = isCloud ? (providerName ? `Cloud • ${providerName}` : 'Cloud AI') : 'Offline Core (0 Tokens)';
+
         let finalHtml = `
           <div class="bot-header-meta">
-            <span class="engine-pill">${mode === 'online' || mode === 'cloud' ? 'Cloud AI' : 'Lightweight Engine'}</span>
+            <span class="engine-pill">${pillText}</span>
             <span class="latency-meta">${latencyStr}</span>
           </div>
-          <div>${escapeHtml(fullText || 'Command executed successfully!')}</div>
+          <div class="bot-text">${formatMarkdown(fullText || 'Command executed successfully!')}</div>
         `;
 
         if (thoughts.trim()) {
@@ -1912,13 +1836,16 @@
                 <span>💭 Internal Execution Trace</span>
                 <span class="caret">▼</span>
               </div>
-              <div class="thought-body">${escapeHtml(thoughts.trim())}</div>
+              <div class="thought-body">${escapeHtml(thoughts.trim()).replace(/\n/g, '<br>')}</div>
             </div>
           `;
         }
 
         botBubble.innerHTML = finalHtml;
         chat.scrollTop = chat.scrollHeight;
+
+        // Refresh stats silently
+        if (typeof loadConfig === 'function') loadConfig();
 
       } catch (err) {
         const elapsed = ((performance.now() - startTime) / 1000).toFixed(2) + 's ⚡';
@@ -1927,9 +1854,115 @@
             <span class="engine-pill">Direct Engine</span>
             <span class="latency-meta">${elapsed}</span>
           </div>
-          <div>Command <code>${escapeHtml(text)}</code> executed!</div>
+          <div>⚠️ Execution error: <code>${escapeHtml(err.message)}</code></div>
         `;
         chat.scrollTop = chat.scrollHeight;
+      }
+    }
+
+    function formatMarkdown(text) {
+      if (!text) return '';
+      const codeBlocks = [];
+      let processed = text.replace(/```([a-zA-Z0-9_\-\.]*)\n([\s\S]*?)```/g, (match, lang, code) => {
+        const id = '___CODE_BLOCK_' + codeBlocks.length + '___';
+        const cleanLang = (lang || '').trim() || 'code';
+        const escapedCode = escapeHtml(code.trim());
+        const html = `
+          <div class="code-card">
+            <div class="code-header">
+              <span>${cleanLang}</span>
+              <button class="code-copy-btn" onclick="copySnippet(this)">Copy</button>
+            </div>
+            <div class="code-content">${escapedCode}</div>
+          </div>
+        `;
+        codeBlocks.push(html);
+        return id;
+      });
+
+      processed = escapeHtml(processed);
+      processed = processed.replace(/`([^`]+)`/g, '<code>$1</code>');
+      processed = processed.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+      processed = processed.replace(/^[•\-\*]\s+(.+)$/gm, '<div style="display:flex; gap:6px; margin:3px 0 3px 8px;"><span>•</span><span>$1</span></div>');
+      processed = processed.replace(/\n/g, '<br>');
+
+      codeBlocks.forEach((block, idx) => {
+        processed = processed.replace('___CODE_BLOCK_' + idx + '___', block);
+      });
+
+      return processed;
+    }
+
+    function copySnippet(btn) {
+      const card = btn.closest('.code-card');
+      if (!card) return;
+      const content = card.querySelector('.code-content');
+      const text = content ? content.innerText : '';
+      navigator.clipboard.writeText(text).then(() => {
+        const old = btn.innerText;
+        btn.innerText = 'Copied! ✓';
+        setTimeout(() => btn.innerText = old, 2000);
+      }).catch(() => {
+        btn.innerText = 'Copied! ✓';
+        setTimeout(() => btn.innerText = 'Copy', 2000);
+      });
+    }
+
+    let recognition = null;
+    let isListening = false;
+
+    function toggleVoiceInput() {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        alert('Aapke browser mein Speech Recognition support nahi hai.');
+        return;
+      }
+      const micBtn = document.querySelector('.mic-btn');
+      if (isListening && recognition) {
+        recognition.stop();
+        return;
+      }
+
+      try {
+        recognition = new SpeechRecognition();
+        recognition.lang = 'ur-PK';
+        recognition.continuous = false;
+        recognition.interimResults = false;
+
+        recognition.onstart = () => {
+          isListening = true;
+          if (micBtn) {
+            micBtn.style.background = '#ef4444';
+            micBtn.style.color = '#ffffff';
+            micBtn.innerText = '🔴';
+          }
+        };
+
+        recognition.onresult = (event) => {
+          const transcript = event.results[0][0].transcript;
+          const input = document.getElementById('userInput');
+          if (input) {
+            input.value = transcript;
+            input.focus();
+          }
+        };
+
+        recognition.onerror = (event) => {
+          console.warn('Speech recognition error:', event.error);
+        };
+
+        recognition.onend = () => {
+          isListening = false;
+          if (micBtn) {
+            micBtn.style.background = '';
+            micBtn.style.color = '';
+            micBtn.innerText = '🎙️';
+          }
+        };
+
+        recognition.start();
+      } catch (err) {
+        console.error(err);
       }
     }
 

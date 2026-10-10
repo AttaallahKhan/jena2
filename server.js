@@ -174,8 +174,8 @@ function startServer() {
         const body = await parseBody();
         const cfg = ConfigManager.load();
         if (body.mode) cfg.mode = body.mode;
-        if (body.provider) cfg.activeProvider = body.provider;
-        if (body.model) cfg.activeModel = body.model;
+        if (body.provider || body.activeProvider) cfg.activeProvider = body.provider || body.activeProvider;
+        if (body.model || body.activeModel) cfg.activeModel = body.model || body.activeModel;
         if (body.allowance) TokenTracker.setAllowance(body.allowance);
         ConfigManager.save(cfg);
         return sendJson(200, { success: true, message: 'Settings save ho gayi hain.' });

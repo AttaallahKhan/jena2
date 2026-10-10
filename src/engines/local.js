@@ -383,6 +383,9 @@ class LocalEngine {
     ) {
       return 'torch_off';
     }
+    if (/^(?:torch|flashlight|batti|torch\s+toggle|toggle\s+torch|batti\s+toggle)$/i.test(q)) {
+      return 'torch_toggle';
+    }
 
     // Device Camera & Selfie Controls
     if (
@@ -418,6 +421,11 @@ class LocalEngine {
     }
     if (/\b(time|waqt|date|tarikh|din|aaj kya date|clock)\b/.test(q)) return 'datetime';
     if (/\b(uptime|specs|hardware|system info|device specs)\b/.test(q)) return 'specs';
+    if (/^(?:storage\s+sync|sync\s+storage|phone\s+sync|cross\s+storage\s+sync)$/i.test(q)) return 'storage_sync';
+    if (/^(?:uname|kernel|os info)(?:\s+-[a-z]+)?$/i.test(q)) return 'system_info';
+    if (/^(?:whoami|current user)$/i.test(q)) return 'whoami';
+    if (/^(?:ports|listening ports|open ports|netstat)$/i.test(q)) return 'listening_ports';
+    if (/^(?:top|ps|processes|active processes)$/i.test(q)) return 'top_process';
     if (/^(?:salam|assalam|hello|hi|hey)\b/i.test(q) || /(?:kaise\s+ho|kya\s+haal\s+hai|kya\s+chal\s+raha\s+hai)/i.test(q)) return 'greeting';
     if (/(?:tum\s+kon\s+ho|kon\s+ho\s+tum|who\s+are\s+you|apna\s+intro|apna\s+tarruf|apna\s+naam|naam\s+kya\s+hai|intro\s+do)/i.test(q)) return 'intro';
     if (/^(hisab karo|calculate|math)\b/.test(q) || /^[\d\s\+\-\*\/\(\)\^\.\%]+$/.test(q)) return 'math';
@@ -575,8 +583,18 @@ class LocalEngine {
         return await TerminalTools.executeTerminalCommand('ss -tuln 2>/dev/null || netstat -tuln', false, this.getCwd());
       case 'whoami':
         return await TerminalTools.executeTerminalCommand('whoami', false, this.getCwd());
-      case 'top_process':
-        return await TerminalTools.executeTerminalCommand('ps aux | head -n 10', false, this.getCwd());
+      case 'torch_toggle':
+        return await DeviceTools.toggleTorch();
+      case 'storage_sync': {
+        const phoneDir = FsTools.ensurePhoneDir();
+        const files = fs.existsSync(phoneDir) ? fs.readdirSync(phoneDir) : [];
+        return `🔄 **Cross-Storage Bridge & Sync Status:**\n\n` +
+               `- 📂 **Phone Shared Folder:** \`${phoneDir}\`\n` +
+               `- 📱 **Status:** Active & Accessible\n` +
+               `- 📄 **Synced Items (${files.length}):**\n` +
+               (files.length > 0 ? files.slice(0, 10).map(f => `  • \`${f}\``).join('\n') : `  *(Abhi koi file copy nahi hui. \`copy file.txt phone\` bol kar copy karein!)*`) +
+               `\n\n*(Aap kisi bhi file ko \`copy <file> phone\` bol kar phone storage mein foran bhej sakte hain.)*`;
+      }
       case 'bluetooth':
         return await DeviceTools.checkBluetooth();
       default: {
