@@ -16,6 +16,7 @@ const { ScaffoldTools } = require('../tools/scaffold');
 const { DeviceTools } = require('../tools/device');
 const { PackageTools } = require('../tools/package');
 const { EvolutionEngine } = require('./evolution');
+const { SlmEngine } = require('./slm');
 
 class LocalEngine {
   static currentDir = HOME_DIR;
@@ -30,21 +31,44 @@ class LocalEngine {
   static splitCompoundQuery(q) {
     if (!q || typeof q !== 'string') return null;
     const clean = q.trim();
-    const parts = clean.split(/\s+(?:aur|and|phir|then|then\s+also)\s+|;\s*/i);
-    if (parts.length > 1 && parts.every(p => p.trim().length >= 2)) {
-      return parts.map(p => p.trim());
+    const parts = clean.split(/\s+(?:aur|aor|and|&|phir|then|then\s+also)\s+|;\s*/i);
+    if (parts.length > 1) {
+      const cleanedParts = parts.map(p => p.trim().replace(/^[\.,;:!\?]+|[\.,;:!\?]+$/g, '').trim());
+      if (cleanedParts.every(p => p.length >= 2)) {
+        return cleanedParts;
+      }
     }
     return null;
   }
 
+  static cleanSalutation(query) {
+    if (!query || typeof query !== 'string') return '';
+    let q = query.trim();
+    q = q.replace(/^(?:hey|suno|o|ai)\s+jena\b[:,\s]*/i, '').trim();
+    q = q.replace(/^jena\s*[:,-]\s*/i, (match) => {
+      return q.toLowerCase().startsWith('jena-ui') ? match : '';
+    }).trim();
+    if (/^jena\s+(?!(?:main|mein|folder|directory|public|src|ko|se|par|chalo|ghuso|delete|copy|move|list)\b)/i.test(q)) {
+      q = q.replace(/^jena\s+/i, '').trim();
+    }
+    return q;
+  }
+
   static parsePackageIntent(q) {
     if (!q || typeof q !== 'string') return null;
-    const clean = q.trim().toLowerCase().replace(/^(?:hey|suno|o|ai)?\s*jena\b[:,\s]*/i, '').replace(/[\?!]/g, '').trim();
+    const clean = this.cleanSalutation(q).toLowerCase().replace(/[\?!]/g, '').trim();
+
+    const NON_PKG_WORDS = new Set([
+      'karo', 'karein', 'file', 'folder', 'phone', 'home', 'battery', 'ram', 'storage',
+      'bluetooth', 'bt', 'torch', 'camera', 'wifi', 'internet', 'network', 'mic', 'audio',
+      'sound', 'volume', 'mode', 'model', 'memory', 'facts', 'system', 'ports', 'status',
+      'log', 'logs', 'failure', 'failures', 'mera', 'meri', 'mere'
+    ]);
 
     // 1. Conditional: Check & Install if not installed
     const mCond = clean.match(/(?:check\s+karo\s+)?([a-z0-9_\-\.]+)\s+installed\s+(?:hay|hai)\s+ya\s+nahi\s*,\s*agar\s+nahi\s+to\s+install(?:\s+karo)?/i) ||
                   clean.match(/(?:check\s+karo\s+)?([a-z0-9_\-\.]+)\s+agar\s+installed\s+nahi\s+to\s+install(?:\s+karo)?/i);
-    if (mCond && mCond[1].length >= 2 && !['karo', 'karein', 'file', 'folder'].includes(mCond[1])) {
+    if (mCond && mCond[1].length >= 2 && !NON_PKG_WORDS.has(mCond[1])) {
       return { type: 'pkg_check_and_install', pkg: mCond[1] };
     }
 
@@ -53,14 +77,14 @@ class LocalEngine {
                    clean.match(/(?:check\s+karo\s+)?([a-z0-9_\-\.]+)\s+installed\s+(?:hay|hai)/i) ||
                    clean.match(/^([a-z0-9_\-\.]+)\s+(?:check\s+karo|check)$/i) ||
                    clean.match(/^check\s+([a-z0-9_\-\.]+)$/i);
-    if (mCheck && mCheck[1].length >= 2 && !['karo', 'karein', 'file', 'folder', 'phone', 'home', 'battery', 'ram', 'storage'].includes(mCheck[1])) {
+    if (mCheck && mCheck[1].length >= 2 && !NON_PKG_WORDS.has(mCheck[1])) {
       return { type: 'pkg_check', pkg: mCheck[1] };
     }
 
     // 3. Install only
     const mInstall = clean.match(/^(?:install\s+karo|pkg\s+install|install)\s+([a-z0-9_\-\.]+)$/i) ||
                      clean.match(/^([a-z0-9_\-\.]+)\s+install(?:\s+karo)?$/i);
-    if (mInstall && mInstall[1].length >= 2 && !['karo', 'karein', 'file', 'folder'].includes(mInstall[1])) {
+    if (mInstall && mInstall[1].length >= 2 && !NON_PKG_WORDS.has(mInstall[1])) {
       return { type: 'pkg_install', pkg: mInstall[1] };
     }
 
@@ -69,8 +93,7 @@ class LocalEngine {
 
   static isLocalIntent(query) {
     if (!query || typeof query !== 'string') return false;
-    let q = query.trim().toLowerCase();
-    q = q.replace(/^(?:hey|suno|o|ai)?\s*jena\b[:,\s]*/i, '').trim();
+    let q = this.cleanSalutation(query).toLowerCase();
 
     // Multi-command / Compound Query detection ("aur", "and", "phir", "then")
     const compoundParts = this.splitCompoundQuery(q);
@@ -87,9 +110,11 @@ class LocalEngine {
       return pkgIntent;
     }
 
-    // 0. Mode status query & switching
+    // 0. Mode & Model status query & switching
     if (
       /\b(?:online\s+ho\s+ya\s+offline|offline\s+ho\s+ya\s+online|current\s+mode|mode\s+kya\s+hai|mode\s+kya\s+hay|status\s+kya\s+hai|status\s+kya\s+hay)\b/i.test(q) ||
+      /\b(?:konse|kounse|kaunse|konsa|kaunsa|what)\s+(?:model|modal)\b/i.test(q) ||
+      /\b(?:model|modal)\s+(?:konsa|kaunsa|kya|par)\b/i.test(q) ||
       /^(?:kya\s+)?(?:offline|online)\s+ho[\?\!\.]*$/i.test(q) ||
       /^(?:offline\s+ho|online\s+ho)[\?\!\.]*$/i.test(q)
     ) {
@@ -123,25 +148,28 @@ class LocalEngine {
 
     // 2c. Capabilities / What can you do
     if (
-      /(?:tum\s+)?kya\s+kya\s+kar\s+sakti\s+ho/i.test(q) ||
+      /(?:tum\s+)?(?:mere\s+liye\s+)?kya\s*(?:kya\s*)?kar\s*sakti\s+ho/i.test(q) ||
+      /(?:kya\s+kar\s*sakti\s+ho|tum\s+kya\s+karti\s+ho|tumhara\s+kya\s+kaam\s+hai)/i.test(q) ||
       /(?:apne\s+)?(?:features|capabilities|skills|kaam|salahiyat|powers)\s*(?:batao|dikhao|list|kya\s+hain)/i.test(q) ||
-      /^(?:what\s+can\s+you\s+do|capabilities|features|skills|help|madad)\b/i.test(q) ||
+      /\b(?:what\s+can\s+you\s+do|capabilities|features|skills|help|madad)\b/i.test(q) ||
       /(?:madad\s+chahiye|guide\s+karo|kya\s+karsakti\s+ho)/i.test(q)
     ) {
       return 'capabilities';
     }
 
-    // 3. Registered Self-Learned Local Operations check
-    const learnedOp = MemoryManager.findOperation(q);
-    if (learnedOp) {
-      return { type: 'learned_op', op: learnedOp };
+    // 3. Explicit Self-Learned Local Operations check
+    if (/^(?:run\s+op\s+|op\s+|run\s+operation\s+)/i.test(q)) {
+      const learnedOp = MemoryManager.findOperation(q);
+      if (learnedOp) {
+        return { type: 'learned_op', op: learnedOp };
+      }
     }
 
     // Terminal / Shell Execution Intent
     const tPattern = /^(?:terminal\s*(?:main|mein)?|bash|sh|cmd|command)\s*[:\s]+(.+)$/i;
     const tPatternRun = /^(?:run|chalao|execute)\s+(?:terminal\s+(?:command\s+)?|command\s+|bash\s+)(.+)$/i;
     const tPatternCmd = /^command\s+(?:run\s+karo|chalao|execute)\s+(.+)$/i;
-    const origQuery = query.trim().replace(/^(?:hey|suno|o|ai)?\s*jena\b[:,\s]*/i, '').trim();
+    const origQuery = this.cleanSalutation(query);
     const tm = origQuery.match(tPattern) || origQuery.match(tPatternRun) || origQuery.match(tPatternCmd);
     if (tm) {
       let raw = tm[1].trim();
@@ -275,10 +303,11 @@ class LocalEngine {
       return 'pwd';
     }
     if (
-      /^(ls|dir)(\s+.*)?$/i.test(q) ||
+      /^(ls|dir|list)(\s+.*)?$/i.test(q) ||
+      q === 'list' ||
       /\b(?:files\s+dikhao|list\s+files|folder\s+mein\s+kya|directory\s+check)\b/i.test(q) ||
       /(?:folder|directory)?\s*(?:list\s+karo|list\s+kardo|list\s+karein)\b/i.test(q) ||
-      /^(?:list\s+)/i.test(q)
+      /^(?:list\b)/i.test(q)
     ) {
       return 'ls';
     }
@@ -316,11 +345,19 @@ class LocalEngine {
     ) {
       return 'copy_item';
     }
+    // Delete File / Folder Intent
     if (
       /^(?:rm(?:\s+-[a-zA-Z]+)?|remove|delete|mitao)\s+/i.test(q) ||
-      /(?:ko\s+delete\s+karo|ko\s+delete\s+kardo|ko\s+mita\s+do|ko\s+remove\s+karo)/i.test(q)
+      /\b(?:delete|remove|mita)\s+(?:karo|kardo|kar\s+do|karein|dijiye)\b/i.test(q) ||
+      /\b(?:ko|se)\s+([a-z0-9_\-\.\/~]+)\s+(?:delete|remove|mita)\b/i.test(q) ||
+      /\b(?:delete|remove)\s+(?:karna|kardo|kar\s+do)\b/i.test(q)
     ) {
       return 'delete_item';
+    }
+
+    // Bluetooth Status Intent
+    if (/\b(?:bluetooth|bt)\b/i.test(q)) {
+      return 'bluetooth';
     }
 
     // Git & GitHub Operations Intent
@@ -381,15 +418,20 @@ class LocalEngine {
     }
     if (/\b(time|waqt|date|tarikh|din|aaj kya date|clock)\b/.test(q)) return 'datetime';
     if (/\b(uptime|specs|hardware|system info|device specs)\b/.test(q)) return 'specs';
-    if (/^(salam|assalam|hello|hi|hey|kaise ho)\b/.test(q)) return 'greeting';
-    if (/^(tum kon ho|who are you|apna intro|apna tarruf)\b/.test(q)) return 'intro';
+    if (/^(?:salam|assalam|hello|hi|hey)\b/i.test(q) || /(?:kaise\s+ho|kya\s+haal\s+hai|kya\s+chal\s+raha\s+hai)/i.test(q)) return 'greeting';
+    if (/(?:tum\s+kon\s+ho|kon\s+ho\s+tum|who\s+are\s+you|apna\s+intro|apna\s+tarruf|apna\s+naam|naam\s+kya\s+hai|intro\s+do)/i.test(q)) return 'intro';
     if (/^(hisab karo|calculate|math)\b/.test(q) || /^[\d\s\+\-\*\/\(\)\^\.\%]+$/.test(q)) return 'math';
+    // Registered Self-Learned Local Operations fallback check
+    const learnedOp = MemoryManager.findOperation(q);
+    if (learnedOp) {
+      return { type: 'learned_op', op: learnedOp };
+    }
 
     return false;
   }
 
   static async execute(intent, query) {
-    if (typeof intent === 'object') {
+    if (intent && typeof intent === 'object') {
       if (intent.type === 'compound_query') {
         const results = [];
         for (let i = 0; i < intent.parts.length; i++) {
@@ -413,6 +455,9 @@ class LocalEngine {
       }
       if (intent.type === 'terminal_exec') {
         return await TerminalTools.executeTerminalCommand(intent.command, intent.autoYes, this.getCwd());
+      }
+      if (intent.type === 'slm_action') {
+        return await SlmEngine.execute(intent.slmIntent, query, this.getCwd(), this);
       }
     }
 
@@ -443,16 +488,17 @@ class LocalEngine {
         const curProvider = cfg.activeProvider || 'groq';
         const curModel = cfg.activeModel || 'qwen/qwen3.8-27b';
         const isOffline = curMode === 'offline';
+        const localSlm = SlmEngine.isAvailable() ? SlmEngine.getModelName() : 'Disabled';
         const userGreeting = isOffline
           ? 'Ji, main bilkul **Offline Mode (⚡ Zero Tokens)** mein hoon!'
           : 'Ji, main bilkul **Online Cloud Mode (🌐)** mein hoon!';
         return `${userGreeting}\n\n` +
-               `🤖 **Jena Operating Status & Mode Report:**\n` +
+               `🤖 **Jena Operating Status & Model Report:**\n` +
                `- 🌐 **Active Mode:** **${curMode.toUpperCase()}**\n` +
-               `- ⚙️ **Active Provider:** \`${curProvider}\`\n` +
-               `- 🧠 **Active Model:** \`${curModel}\`\n` +
-               `- ⚡ **Local Core:** Active (Termux Linux • Zero Token Usage)\n\n` +
-               `*Aap upar header switch se ya \`online mode\` / \`offline mode\` bol kar switch kar sakte hain.*`;
+               `- 🧠 **Local Neural SLM:** \`${localSlm}\` (Offline Neural Core)\n` +
+               `- ☁️ **Cloud AI Provider:** \`${curProvider}\` (Model: \`${curModel}\`)\n` +
+               `- ⚡ **Hardware Execution:** Termux Native (Zero Token Usage)\n\n` +
+               `*Aap header switch se ya \`online mode\` / \`offline mode\` bol kar switch kar sakte hain.*`;
       }
       case 'reload_page':
         return '🔄 **Page Refresh:** Browser page refresh initiate ho raha hai...';
@@ -523,8 +569,24 @@ class LocalEngine {
         return 'Main **Jena** hoon (v0.3), aik autonomous hybrid AI agent jo Termux aur Linux ke liye banai gayi hai. Mere paas self-learning engine hai jo nayi local operations seekh kar offline save kar sakta hai, filesystem navigation capability hai, aur high-speed cloud intelligence jo coding aur complex analysis handle karti hai.';
       case 'math':
         return SystemTools.calculate(query);
-      default:
+      case 'system_info':
+        return await TerminalTools.executeTerminalCommand('uname -a', false, this.getCwd());
+      case 'listening_ports':
+        return await TerminalTools.executeTerminalCommand('ss -tuln 2>/dev/null || netstat -tuln', false, this.getCwd());
+      case 'whoami':
+        return await TerminalTools.executeTerminalCommand('whoami', false, this.getCwd());
+      case 'top_process':
+        return await TerminalTools.executeTerminalCommand('ps aux | head -n 10', false, this.getCwd());
+      case 'bluetooth':
+        return await DeviceTools.checkBluetooth();
+      default: {
+        if (SlmEngine.isAvailable()) {
+          const slmIntent = await SlmEngine.classify(query);
+          const executed = await SlmEngine.execute(slmIntent, query, this.getCwd(), this);
+          if (executed) return executed;
+        }
         return null;
+      }
     }
   }
 

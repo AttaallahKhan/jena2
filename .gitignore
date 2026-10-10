@@ -1,3 +1,7 @@
 .env
 __pycache__/
 *.pyc
+public_backup/
+jena-ui/
+public/index_legacy.html
+node_modules/

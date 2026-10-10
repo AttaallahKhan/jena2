@@ -15,12 +15,17 @@ class CloudEngine {
   static async generate(prompt, options = {}) {
     const cfg = ConfigManager.load();
     const allProviders = ConfigManager.getAllProviders();
-    const provider = options.provider || cfg.activeProvider || 'groq';
-    const model = options.model || cfg.activeModel || 'qwen/qwen3.8-27b';
-    const temp = options.temperature ?? cfg.temperature ?? 0.3;
-    const maxTokens = options.maxTokens ?? cfg.maxTokens ?? 700;
+    const provider = (options.provider && options.provider !== 'offline') ? options.provider : (cfg.activeProvider !== 'offline' ? cfg.activeProvider : 'groq');
+    let model = options.model || (cfg.activeModel !== 'jena-local-core' ? cfg.activeModel : null);
 
     const providerConfig = allProviders[provider] || DEFAULT_PROVIDERS[provider] || DEFAULT_PROVIDERS.groq;
+    if (!model || model === 'jena-local-core') {
+      const defMod = providerConfig.models?.find(m => m.default) || providerConfig.models?.[0];
+      model = defMod?.id || (provider === 'gemini' ? 'gemini-2.0-flash' : 'qwen/qwen3.8-27b');
+    }
+
+    const temp = options.temperature ?? cfg.temperature ?? 0.3;
+    const maxTokens = options.maxTokens ?? cfg.maxTokens ?? 700;
 
     const keys = ConfigManager.getKeys(provider, model);
     if (!keys || keys.length === 0) {

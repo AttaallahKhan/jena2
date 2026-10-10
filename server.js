@@ -32,6 +32,7 @@ const {
 
 const { LogManager } = require('./src/logger');
 const { LocalEngine } = require('./src/engines/local');
+const { SlmEngine } = require('./src/engines/slm');
 const { CloudEngine, TestEngine } = require('./src/engines/cloud');
 const { EvolutionEngine } = require('./src/engines/evolution');
 const { GitTools } = require('./src/tools/git');
@@ -96,7 +97,8 @@ function startServer() {
     '.json': 'application/json; charset=utf-8',
     '.ico': 'image/x-icon',
     '.png': 'image/png',
-    '.svg': 'image/svg+xml'
+    '.svg': 'image/svg+xml',
+    '.txt': 'text/plain; charset=utf-8'
   };
 
   const resolveEditorPath = (reqPath) => {
@@ -666,7 +668,8 @@ function startServer() {
       const sendEvent = (obj) => res.write(`data: ${JSON.stringify(obj)}\n\n`);
 
       // 1. Offline / Local Engine
-      const isExplicitOffline = body.provider === 'offline' || body.mode === 'offline';
+      const activeCfg = ConfigManager.load();
+      const isExplicitOffline = body.provider === 'offline' || body.mode === 'offline' || (!body.provider && (activeCfg.mode === 'offline' || activeCfg.activeProvider === 'offline'));
       const localIntent = LocalEngine.isLocalIntent(userMessage);
 
       if (isExplicitOffline || localIntent) {
@@ -684,16 +687,23 @@ function startServer() {
             isErr = true;
           }
         } else {
-          localResponse = `⚡ **Jena Local Engine (Offline Mode)**\n\n` +
-            `Main offline mode mein hoon aur Termux environment par 0 tokens ke sath active hoon. Aap mujh se yeh offline tasks karwa sakte hain:\n` +
-            `- 🌐 **Web Page Scaffolder:** \`webpage banao portfolio <name>\`, \`landing page banao\`, \`dashboard webpage banao\`, \`nodejs server banao\`\n` +
-            `- 🎨 **Jena GUI Inspection & Edit:** \`apne index.html ko explain karo\`, \`explain style.css\`, \`css main background color #0b0f19 kardo\`\n` +
-            `- 📚 **Web Concepts & Cheatsheet:** \`explain html\`, \`explain css\`, \`explain javascript\`, \`explain nodejs\`\n` +
-            `- 📂 **Filesystem & File Editor:** \`cd <dir>\`, \`ls\`, \`read file <name>\`, \`write file <path> <text>\`, \`edit file <path> replace "old" with "new"\`\n` +
-            `- 🔋 **Device & Health:** \`battery status check karo\`, \`ram check karo\`, \`storage check karo\`\n` +
-            `- 🧮 **Riyazi / Math Hisab:** \`hisab karo 250 * 12\`\n` +
-            `- 🧠 **Self-Learning / Operations:** \`apne operations dikhao\`, \`run op git_status\`\n\n` +
-            `*Online Cloud AI use karne ke liye upar switch se **🌐 Online Mode** select karein.*`;
+          const isCodeOrCreative = /\b(?:code|script|likho|banao|write|function|program|example|hello\s+world|python|javascript|js|html|css|php)\b/i.test(userMessage);
+          if (isCodeOrCreative) {
+            localResponse = `⚡ **Jena Local Engine (Ultra-Fast Offline Mode)**\n\n` +
+              `Main is waqt **100% Offline Mode (0 Tokens • Zero Lag)** mein active hoon aur Termux hardware/filesystem controls handle kar rahi hoon.\n\n` +
+              `💡 **Code Generation & Complex Assistance:**\n` +
+              `Python scripts, coding, ya complex queries ke liye barah-e-karam upar switch se **🌐 Online Mode** select karein (Groq LPU / Gemini Flash). Wo **0.4s** mein ultra-fast speed par code generate karega!\n\n` +
+              `*(Offline commands dekhne ke liye \`help\` ya \`tum kya kar sakti ho\` likhein.)*`;
+          } else {
+            localResponse = `⚡ **Jena Local Engine (Offline Mode • 0 Tokens)**\n\n` +
+              `Main offline mode mein hoon aur Termux environment par 0 tokens ke sath lightning-fast active hoon. Aap mujh se yeh offline tasks karwa sakte hain:\n` +
+              `- 📱 **Device & Hardware:** \`torch on\`, \`torch off\`, \`selfie lo\`, \`photo lo\`, \`bluetooth check karo\`, \`battery\`, \`ram\`, \`storage\`\n` +
+              `- 📂 **Filesystem:** \`cd <dir>\`, \`ls\`, \`delete <item>\`, \`copy <src> <dest>\`, \`move <src> <dest>\`, \`read <file>\`\n` +
+              `- 🌐 **Scaffolder:** \`webpage banao portfolio <name>\`, \`landing page banao\`, \`dashboard webpage banao\`\n` +
+              `- 🧮 **Riyazi / Math Hisab:** \`hisab karo 250 * 12\`\n` +
+              `- 🧠 **Self-Learning / Operations:** \`apne operations dikhao\`, \`apni memory dikhao\`\n\n` +
+              `*Online Cloud AI (Coding & Deep Chat) use karne ke liye upar switch se **🌐 Online Mode** select karein.*`;
+          }
         }
 
         LogManager.logInteraction({
@@ -711,7 +721,7 @@ function startServer() {
           const intentType = typeof localIntent === 'object' ? localIntent.type : localIntent;
           if (intentType === 'open_editor') {
             sendEvent({ type: 'switch_tab', tab: 'editor' });
-          } else if (intentType === 'cd' || (intentType === 'terminal_exec' && /^cd(\s+.*)?$/i.test(localIntent.command))) {
+          } else if (intentType === 'cd' || (intentType === 'terminal_exec' && /^cd(\s+.*)?$/i.test(localIntent.command)) || /Directory Changed \(CWD Updated\)/i.test(localResponse)) {
             sendEvent({ type: 'cwd_changed', cwd: LocalEngine.getCwd() });
           } else if (intentType === 'reload_page' || intentType === 'troubleshoot_changes') {
             sendEvent({ type: 'hot_reload', target: 'page' });
@@ -816,7 +826,7 @@ function startServer() {
     }
 
     // --- STATIC FILES & PAGE ROUTE SERVING ---
-    if (pathname === '/' || pathname === '/settings' || pathname === '/models' || pathname === '/providers') {
+    if (pathname === '/' || pathname === '/settings' || pathname === '/editor' || pathname === '/metrics' || pathname === '/models' || pathname === '/providers') {
       const indexFile = path.join(PUBLIC_DIR, 'index.html');
       if (fs.existsSync(indexFile)) {
         res.writeHead(200, {
@@ -980,6 +990,30 @@ async function runCli(args) {
       console.log(`❌ Error: ${e.message}\n`);
     }
     return;
+  }
+
+  // 1b. Check Local SLM Neural Brain (If Offline Mode)
+  const isExplicitOffline = args.includes('--offline') || ConfigManager.load().mode === 'offline';
+  if (isExplicitOffline && SlmEngine.isAvailable()) {
+    console.log(`\n🧠 [Jena Neural Brain - ${SlmEngine.getModelName()}]: Offline Reasoning (0 Tokens)...\n`);
+    try {
+      const slmIntent = await SlmEngine.classify(query);
+      let ans = await SlmEngine.execute(slmIntent, query, LocalEngine.getCwd(), LocalEngine);
+      if (!ans) ans = await LocalEngine.execute(null, query);
+      if (!ans) ans = `⚠️ [Jena]: Query samajh nahi saki.`;
+      console.log(ans + '\n');
+      LogManager.logInteraction({
+        userMessage: query,
+        assistantReply: ans,
+        mode: 'offline',
+        provider: 'slm',
+        model: SlmEngine.getModelName(),
+        success: true
+      });
+      return;
+    } catch (e) {
+      console.log(`❌ SLM Error: ${e.message}\n`);
+    }
   }
 
   // 2. Cloud AI

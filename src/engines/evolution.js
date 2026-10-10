@@ -141,7 +141,7 @@ class EvolutionEngine {
       const trigger = opMatch[1].trim();
       const command = opMatch[2].trim();
       const desc = opMatch[3].trim();
-      if (trigger && command && this.isSafeCommand(command)) {
+      if (trigger && command && !trigger.includes('<') && !command.includes('<') && this.isSafeCommand(command)) {
         const op = this.registerOperationSafe(null, trigger, command, desc, 'tag');
         if (op) {
           return { type: 'OPERATION_DISTILLED', source: 'tag', name: op.name, trigger, command };
@@ -155,7 +155,7 @@ class EvolutionEngine {
     if (factMatch) {
       const topic = factMatch[1].trim();
       const fact = factMatch[2].trim();
-      if (fact) {
+      if (fact && !topic.includes('<') && !fact.includes('<')) {
         const item = MemoryManager.addFact(fact, topic);
         return { type: 'FACT_DISTILLED', source: 'tag', topic, fact: item.fact };
       }
@@ -283,7 +283,9 @@ class EvolutionEngine {
    */
   static deriveTriggerFromQuery(query) {
     let clean = query.toLowerCase()
-      .replace(/^(?:hey|suno|o|ai)?\s*jena\b[:,\s]*/i, '')
+      .replace(/^(?:hey|suno|o|ai)\s+jena\b[:,\s]*/i, '')
+      .replace(/^jena\s*[:,-]\s*/i, (m) => query.toLowerCase().startsWith('jena-ui') ? m : '')
+      .replace(/^jena\s+(?!(?:main|mein|folder|directory|public|src|ko|se|par|chalo|ghuso|delete|copy|move|list)\b)/i, '')
       .replace(/^(?:please|zara|barah-e-karam|kripya)\s*/i, '')
       .replace(/(?:karo|kardo|karein|batao|dikhao|show|run|execute|please)$/i, '')
       .trim();

@@ -34,6 +34,11 @@ class FsTools {
       return HOME_DIR;
     }
 
+    // 1b. Direct alias for Jena project
+    if (['jena', 'jena folder', 'jena dir', 'jena directory', 'jena project'].includes(lower)) {
+      return path.join(HOME_DIR, 'jena');
+    }
+
     // 2. Direct aliases for PHONE (termux-to-phone)
     if (
       [
@@ -115,9 +120,22 @@ class FsTools {
     return path.normalize(path.join(cwd, trimmed));
   }
 
+  static cleanSalutation(query) {
+    if (!query || typeof query !== 'string') return '';
+    let q = query.trim();
+    q = q.replace(/^(?:hey|suno|o|ai)\s+jena\b[:,\s]*/i, '').trim();
+    q = q.replace(/^jena\s*[:,-]\s*/i, (match) => {
+      return q.toLowerCase().startsWith('jena-ui') ? match : '';
+    }).trim();
+    if (/^jena\s+(?!(?:main|mein|folder|directory|public|src|ko|se|par|chalo|ghuso|delete|copy|move|list)\b)/i.test(q)) {
+      q = q.replace(/^jena\s+/i, '').trim();
+    }
+    return q;
+  }
+
   static extractCdTarget(query) {
     if (!query) return '';
-    let q = query.trim().replace(/^(?:hey|suno|o|ai)?\s*jena\b[:,\s]*/i, '').trim();
+    let q = this.cleanSalutation(query);
 
     if (/^(?:peeche|back|bahir|bahr)\s+(?:jao|aao|niklo)$/i.test(q) || q.toLowerCase() === 'cd ..') {
       return '..';
@@ -131,17 +149,21 @@ class FsTools {
     }
     m = q.match(/^(?:go\s+to|enter|switch\s+to|open)\s+(?:folder\s+|directory\s+)?(.+)$/i);
     if (m) {
-      return m[1].trim();
+      return m[1].replace(/[\.,;:!\?]+$/g, '').trim();
     }
     let target = q.replace(/^(?:cd|folder\s+badlo|andar\s+jao)\s*/i, '').trim();
     target = target.replace(/^(?:folder|directory)\s+/i, '').trim();
+    target = target.replace(/[\.,;:!\?]+$/g, '').trim();
     return target;
   }
 
   static changeDirectory(query, currentDir) {
     let target = this.extractCdTarget(query);
     if (!target || target === '~' || target.toLowerCase() === 'home') target = HOME_DIR;
-    const dest = this.resolvePath(target, currentDir);
+    let dest = this.resolvePath(target, currentDir);
+    if (!fs.existsSync(dest) && target && path.basename(currentDir).toLowerCase() === target.toLowerCase()) {
+      dest = currentDir;
+    }
 
     if (!fs.existsSync(dest)) {
       return { newCwd: currentDir, message: `❌ **Error:** Folder mojood nahi hai:\n\`${dest}\`` };
@@ -173,14 +195,45 @@ class FsTools {
   }
 
   static listFiles(query = '', currentDir = HOME_DIR) {
-    let target = (query || '').trim();
-    target = target.replace(/^(?:hey|suno|o|ai)?\s*jena\b[:,\s]*/i, '').trim();
-    target = target.replace(/^(?:ls|dir|files\s+dikhao|list\s+files|folder\s+mein\s+kya|directory\s+check|list)\s*/i, '').trim();
-    target = target.replace(/\s*(?:folder|directory)?\s*(?:list\s+karo|list\s+kardo|list\s+karein|dikhao|check).*$/i, '').trim();
-    target = target.replace(/\s*(?:k[aei]?|ke|k)\s+(?:folders?|files?|directories|directory)\s*$/i, '').trim();
-    target = target.replace(/\s+(?:folder|folders|directory|directories|files?)\s*$/i, '').trim();
+    let target = this.cleanSalutation(query || '').trim();
+    target = target.replace(/^(?:ls|dir|files\s+dikhao|list\s+files|folder\s+mein\s+kya|directory\s+check)\s*/i, '').trim();
 
-    const dir = target ? this.resolvePath(target, currentDir) : currentDir;
+    if (
+      /^(?:list|ls|dir|files?|folders?|tamam\s+files?|all\s+files?)\s*(?:ko)?\s*(?:list|dikhao|show|check)?\s*(?:karo|kardo|karein|kardain)?$/i.test(target) ||
+      /^(?:folder|directory)\s*(?:ko)?\s*(?:list|dikhao|show|check)\s*(?:karo|kardo|karein|kardain)?$/i.test(target) ||
+      /^(?:list|dikhao|show|check)\s*(?:karo|kardo|karein|kardain)?$/i.test(target)
+    ) {
+      target = '';
+    } else {
+      // 1. Strip trailing list/show/check commands: "ki files list karo", "list kardo", etc.
+      target = target.replace(/\s*(?:ko|ka|ki|ke)?\s*(?:files?|folders?)?\s*(?:ko|ka|ki|ke)?\s*(?:list|dikhao|show|check)\s*(?:karo|kardo|karein|kardain)?.*$/i, '').trim();
+      target = target.replace(/\s*(?:k[aei]?|ke|k)\s+(?:folders?|files?|directories|directory)\s*$/i, '').trim();
+
+      // 2. Handle nested prepositions: e.g. "jena folder k andar public folder" -> "jena/public"
+      if (/\s+(?:k[aei]?|ke|k)\s+andar\s+/i.test(target)) {
+        const parts = target.split(/\s+(?:k[aei]?|ke|k)\s+andar\s+/i)
+          .map(p => p.replace(/\s+(?:folder|directory)$/i, '').replace(/^(?:folder|directory)\s+/i, '').trim())
+          .filter(Boolean);
+        target = path.join(...parts);
+      } else {
+        const folderMatch = target.match(/^([a-z0-9_\-\.\/~]+)\s+(?:folder|directory)\s*(?:ko|ka|ki|ke)?\s*(?:list|dikhao|show|check)?\s*(?:karo|kardo|karein|kardain)?$/i);
+        if (folderMatch) {
+          target = folderMatch[1].trim();
+        } else {
+          target = target.replace(/\s+(?:folder|folders|directory|directories)\s*(?:ko|ka|ki|ke)?\s*$/i, '').trim();
+          target = target.replace(/\s+(?:folder|folders|directory|directories|files?)\s*$/i, '').trim();
+          target = target.replace(/^(?:folder|directory)\s+/i, '').trim();
+          if (/^(?:list|ls|dir|files?|folder|directory)$/i.test(target)) {
+            target = '';
+          }
+        }
+      }
+    }
+
+    let dir = target ? this.resolvePath(target, currentDir) : currentDir;
+    if (!fs.existsSync(dir) && target && path.basename(currentDir).toLowerCase() === target.toLowerCase()) {
+      dir = currentDir;
+    }
 
     if (!fs.existsSync(dir)) {
       return `❌ **Error:** Path mojood nahi hai:\n\`${dir}\``;
@@ -302,7 +355,7 @@ class FsTools {
 
   static searchFiles(query, currentDir = HOME_DIR) {
     let term = (query || '').trim();
-    term = term.replace(/^(?:hey|suno|o|ai)?\s*jena\b[:,\s]*/i, '').trim();
+    term = this.cleanSalutation(term);
     term = term.replace(/^(?:find|dhoondo|search\s+file|search|locate|where\s+is)\s+/i, '').trim();
     term = term.replace(/\s*(?:folder|file)?\s*(?:kahan\s+(?:hai|hay|he|h[ou]+n)|kidhar\s+(?:hai|hay)).*$/i, '').trim();
     term = term.replace(/^(?:folder|file)\s+/i, '').trim();
@@ -388,7 +441,7 @@ class FsTools {
   }
 
   static transferItem(query, defaultIsMove = false, currentDir = HOME_DIR) {
-    let q = (query || '').trim().replace(/^(?:hey|suno|o|ai)?\s*jena\b[:,\s]*/i, '').trim();
+    let q = this.cleanSalutation(query || '');
 
     let isMove = defaultIsMove;
     if (/\b(?:move|mv|cut|hata\s*k|le\s*jao)\b/i.test(q)) {
@@ -592,12 +645,36 @@ class FsTools {
   }
 
   static deleteItem(query, currentDir = HOME_DIR) {
-    let q = (query || '').trim().replace(/^(?:hey|suno|o|ai)?\s*jena\b[:,\s]*/i, '').trim();
-    let target = q.replace(/^(?:rm(?:\s+-[a-zA-Z]+)?|remove|delete|mitao)\s+/i, '').trim();
-    target = target.replace(/\s*(?:ko\s+)?(?:delete|remove|mita)\s*(?:karo|kardo|karein)?$/i, '').trim();
-    target = target.replace(/^(?:file|folder)\s+/i, '').trim();
+    let q = this.cleanSalutation(query || '').trim();
+    let target = '';
+
+    if (/^(?:rm(?:\s+-[a-zA-Z]+)?|remove|delete|mitao|mita\s+do)(?:\s+(?:karo|kardo|kar\s+do))?\s+/i.test(q)) {
+      target = q.replace(/^(?:rm(?:\s+-[a-zA-Z]+)?|remove|delete|mitao|mita\s+do)(?:\s+(?:karo|kardo|kar\s+do))?\s+/i, '').trim();
+    } else {
+      target = q.replace(/\s+(?:ko|se)\s+(?:delete|remove|mita)\s*(?:karo|kardo|kar\s+do|karein|dijiye)?$/i, '');
+      target = target.replace(/\s+(?:delete|remove|mita)\s*(?:karo|kardo|kar\s+do|karein|dijiye)$/i, '');
+      target = target.replace(/\s+(?:ko|se)?\s*(?:delete|remove|mitao)$/i, '');
+    }
+
+    target = target.replace(/^(?:file|folder|directory)\s+/i, '').trim();
+    target = target.replace(/\s+(?:file|folder|directory)$/i, '').trim();
+
+    // Handle "home folder se jena-ui" or "home main jena-ui" or "X k andar Y"
+    const seMatch = target.match(/^(?:([a-z0-9_\-\.\/~]+)(?:\s+folder)?\s+(?:se|main|mein)\s+)?([a-z0-9_\-\.\/~]+)$/i);
+    if (seMatch && seMatch[1]) {
+      const parent = seMatch[1].trim();
+      const child = seMatch[2].trim();
+      target = (parent.toLowerCase() === 'home') ? child : path.join(parent, child);
+    }
+
     if (!target) return '⚠️ Barah-e-karam delete karne ke liye file ya folder ka naam batayein (e.g. `rm filename.txt`).';
-    const resolved = this.resolvePath(target, currentDir);
+    let resolved = this.resolvePath(target, currentDir);
+    if (!fs.existsSync(resolved) && currentDir !== HOME_DIR) {
+      const fallbackHome = this.resolvePath(target, HOME_DIR);
+      if (fs.existsSync(fallbackHome)) {
+        resolved = fallbackHome;
+      }
+    }
     if (!fs.existsSync(resolved)) {
       return `⚠️ File ya folder pehle se mojood nahi hai:\n\`${resolved}\``;
     }
